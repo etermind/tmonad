@@ -1,0 +1,80 @@
+{
+    "name": "@etermind/tmonad",
+    "version": "0.5.0",
+    "description": "A set of tools to use pure functional programming with generators in TypeScript",
+    "keywords": [
+        "functional",
+        "monad",
+        "typescript",
+        "generator"
+    ],
+    "author": "Etermind",
+    "license": "MIT",
+    "main": "dist/lib/index.js",
+    "module": "dist/lib/index.js",
+    "types": "dist/types/index.d.ts",
+    "engines": {
+        "node": ">=12"
+    },
+    "scripts": {
+        "prebuild": "npx rimraf dist",
+        "build": "npx tsc --module commonjs",
+        "build:watch": "npx tsc -w --module commonjs",
+        "dev:watch": "npx tsc-watch --module commonjs --onSuccess 'npm run dev'",
+        "dev": "node --harmony ./dist/lib/index.js",
+        "test": "npx jest --coverage",
+        "test:watch": "npx jest --coverage --watch",
+        "test:prod": "npm run lint && npm run test -- --no-cache",
+        "lint": "npx tslint --project tsconfig.json -t codeFrame 'lib/**/*.ts' 'test/**/*.ts'",
+        "docs": "npx typedoc --out docs --theme minimal lib"
+    },
+    "dependencies": {
+        "@types/node": "^12"
+    },
+    "devDependencies": {
+        "@types/chai": "^4.2.11",
+        "@types/jest": "^26.0.20",
+        "@types/sinon": "^9.0.10",
+        "chai": "4.x",
+        "gitlab-npm-audit-parser": "^1.x",
+        "jest": "^26.x",
+        "jest-config": "^26.x",
+        "lodash.camelcase": "^4.3.0",
+        "rimraf": "^2.7.1",
+        "sinon": "^9.x",
+        "ts-jest": "^26.x",
+        "tsc-watch": "1.x",
+        "tslint": "^6.x",
+        "tslint-config-airbnb": "^5.11.2",
+        "tslint-language-service": "^0.9.9",
+        "typedoc": "^0.20.x",
+        "typescript": "^4.x"
+    },
+    "jest": {
+        "transform": {
+            ".(ts|tsx)": "ts-jest"
+        },
+        "testEnvironment": "node",
+        "testRegex": "(/tests/.*|\\.(test|spec|func))\\.(ts|tsx|js)$",
+        "moduleFileExtensions": [
+            "ts",
+            "tsx",
+            "js"
+        ],
+        "coveragePathIgnorePatterns": [
+            "/node_modules/",
+            "/tests/"
+        ],
+        "coverageThreshold": {
+            "global": {
+                "branches": 85,
+                "functions": 85,
+                "lines": 85,
+                "statements": 85
+            }
+        },
+        "collectCoverageFrom": [
+            "lib/**/*.{js,ts}"
+        ]
+    }
+}
