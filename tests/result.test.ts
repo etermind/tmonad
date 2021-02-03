@@ -108,4 +108,46 @@ describe('Result', () => {
         res.toOption().isNone().should.be.true;
         res.toOption().isSome().should.be.false;
     });
+
+    it('should call the first function when it is an ok', () => {
+        const ifOk = (o: string) => o.should.equal('ok');
+        const ifErr = (e: Error) => {
+            throw e;
+        };
+
+        const res = Result.ok('ok');
+        res.match(ifOk, ifErr);
+    });
+
+    it('should call the second function when it is an ok', () => {
+        const ifOk = (o: string) => o.should.equal('ok');
+        const ifErr = (e: number) => e.should.equal(4);
+
+        const res = Result.err<string, number>(4);
+        res.match(ifOk, ifErr);
+    });
+
+    it('should call the second function when it is an err', () => {
+        const ifOk = (o: string) => o.should.equal('ok');
+        const ifErr = (e: number) => e.should.equal(4);
+
+        const res = Result.err<string, number>(4);
+        res.match(ifOk, ifErr);
+    });
+
+    it('should retrieve the returned value of the 1st function when it is an ok', () => {
+        const ifOk = () => 4;
+        const ifErr = () => 'test';
+
+        const res = Result.ok('test');
+        res.match(ifOk, ifErr).should.equal(4);
+    });
+
+    it('should retrieve the returned value of the 2nd function when it is an err', () => {
+        const ifOk = () => 'test';
+        const ifErr = () => 4;
+
+        const res = Result.err<number, string>('test');
+        res.match(ifOk, ifErr).should.equal(4);
+    });
 });

@@ -113,6 +113,19 @@ export default class Result<O, E> {
     }
 
     /**
+     * Match
+     *
+     * Execute the first function is the result is an ok
+     * Execute the second function is the result is an error
+     */
+    match<T, U>(ifOk: (val: O) => T, ifErr: (val: E) => U): T | U {
+        if (this._type === ResultType.ERR) {
+            return ifErr(this._err!);
+        }
+        return ifOk(this._ok!);
+    }
+
+    /**
      * Get the value from the result, but if it's of type Err, return the defaultValue
      * @param defaultValue The default value
      * @return The value from the result or the default value
