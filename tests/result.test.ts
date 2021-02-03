@@ -96,4 +96,16 @@ describe('Result', () => {
     it('should extract the value to something when it is ok', () => {
         Result.ok(4).extract().should.equal(4);
     });
+
+    it('should transform the result to an option with a value', () => {
+        const res = Result.ok(4);
+        res.toOption().isSome().should.be.true;
+        res.toOption().isNone().should.be.false;
+    });
+
+    it('should transform the result to an option with null', () => {
+        const res = Result.err<string, Error>(new Error('test'));
+        res.toOption().isNone().should.be.true;
+        res.toOption().isSome().should.be.false;
+    });
 });
