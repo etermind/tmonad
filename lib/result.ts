@@ -117,6 +117,10 @@ export default class Result<O, E> {
      *
      * Execute the first function is the result is an ok
      * Execute the second function is the result is an error
+     *
+     * @param ifOk The function to execute when result is an ok
+     * @param ifErr The function to execute when result is an err
+     * @return The returned value of the first or second function
      */
     match<T, U>(ifOk: (val: O) => T, ifErr: (val: E) => U): T | U {
         if (this._type === ResultType.ERR) {
@@ -130,7 +134,7 @@ export default class Result<O, E> {
      * @param defaultValue The default value
      * @return The value from the result or the default value
      */
-    getOrElse(defaultValue: O): O {
+    getOrElse<R>(defaultValue: R): O|R {
         if (this._type === ResultType.ERR) {
             return defaultValue;
         }

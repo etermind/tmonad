@@ -1,4 +1,5 @@
 import Result from './result';
+import AsyncOption from './async_option';
 
 /**
  * AsyncResult Monad
@@ -141,16 +142,32 @@ export default class AsyncResult<O, E> {
      * @param defaultValue The default value
      * @return The value from the option or the default value
      */
-    async getOrElse(defaultValue: O): Promise<O> {
+    async getOrElse<R>(defaultValue: R): Promise<O|R> {
         const res = await this._runner();
         return res.getOrElse(defaultValue);
     }
 
     /**
-     * Get the value from option
-     * @return The value from the option or none if no value exists
+     * Get the value from the result
+     * @return The value from the result (could be ok or err)
      */
     async extract(): Promise<O | E> {
-        return (await this._runner()).extract();
+        const res = await this._runner();
+        return res.extract();
+    }
+
+    /**
+     * Transform to an async option
+     * @return An AsyncOption
+     */
+    toAsyncOption(): AsyncOption<O> {
+        const promise = (async () => {
+            const res = await this._runner();
+            if (res.isErr()) {
+                return null;
+            }
+            return res.extract() as NonNullable<O>;
+        })();
+        return AsyncOption.fromPromise<O>(promise);
     }
 }

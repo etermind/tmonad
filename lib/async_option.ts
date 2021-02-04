@@ -44,6 +44,19 @@ export default class AsyncOption<T> {
     }
 
     /**
+     * Create an option with a possibly null or undefined value
+     */
+    static fromPromise<T>(value: Promise<NonNullable<T> | null>) {
+        return new AsyncOption<T>(async () => {
+            const res = await value;
+            if (res === null) {
+                return Option.none<T>();
+            }
+            return Option.some<T>(res);
+        });
+    }
+
+    /**
      * Run a series of options into a generator
      *
      * @param gen The generator function
@@ -132,7 +145,7 @@ export default class AsyncOption<T> {
      * @param defaultValue The default value
      * @return The value from the option or the default value
      */
-    async getOrElse(defaultValue: NonNullable<T>): Promise<NonNullable<T>> {
+    async getOrElse<R>(defaultValue: R): Promise<NonNullable<T>|R> {
         const res = await this._runner();
         return res.getOrElse(defaultValue);
     }

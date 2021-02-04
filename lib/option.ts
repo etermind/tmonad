@@ -104,7 +104,7 @@ export default class Option<T> {
      * @param defaultValue The default value
      * @return The value from the option or the default value
      */
-    getOrElse(defaultValue: NonNullable<T>): NonNullable<T> {
+    getOrElse<R>(defaultValue: R): NonNullable<T>|R {
         return this._value === null ? defaultValue : this._value;
     }
 

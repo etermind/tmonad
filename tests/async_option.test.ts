@@ -28,6 +28,16 @@ describe('AsyncOption', () => {
         (await opt.isSome()).should.be.true;
     });
 
+    it('should evaluate to none when fromPromise is Promise<null>', async () => {
+        const opt = AsyncOption.fromPromise<string>(Promise.resolve(null));
+        (await opt.isNone()).should.be.true;
+    });
+
+    it('should evaluate to some when fromPromise is Promise<T>', async () => {
+        const opt = AsyncOption.fromPromise<string>(Promise.resolve('ok'));
+        (await opt.isSome()).should.be.true;
+    });
+
     it('should return the else when option evaluates to none', async () => {
         const opt = AsyncOption.none<string>();
         (await opt.getOrElse('test')).should.equal('test');
@@ -133,7 +143,7 @@ describe('AsyncOption', () => {
 
     it('should run the generator and return none in case of error (2)', async () => {
         const doubling = async (n: number) => Option.some(n * 2);
-        const opt = Promise.reject(new Error('test'));
+        const opt = Promise.resolve(Option.some<number>(2));
         const res = AsyncOption.run(function* () {
             const n = yield opt;
             const d = yield doubling(n);

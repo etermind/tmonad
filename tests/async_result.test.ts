@@ -39,6 +39,19 @@ describe('AsyncResult', () => {
         (await res2.getOrElse(10)).should.equal(10);
     });
 
+    it('should throw in the function and return a result (with err)', async () => {
+        const res = AsyncResult.ok<number, Error>(2);
+        const res2 = res.map((n: number) => {
+            if (n === 2) {
+                throw new Error('test');
+            }
+            return n * 2;
+        });
+
+        const extracted = await res2.extract();
+        (extracted as Error).message.should.equal('test');
+    });
+
     it('should apply the function and return the value', async () => {
         (await AsyncResult.ok(4)
             .flatMap(async n => Result.ok(n * 2))
@@ -49,6 +62,19 @@ describe('AsyncResult', () => {
         (await AsyncResult.err<number, Error>(new Error('test'))
             .flatMap(async n => Result.ok(n * 2))
             .getOrElse(10)).should.equal(10);
+    });
+
+    it('should throw in the function and return a result with an err', async () => {
+        const res = AsyncResult.ok<number, Error>(2)
+            .flatMap(async (n) => {
+                if (n === 2) {
+                    throw new Error('test');
+                }
+                return Result.ok(n * 2);
+            });
+
+        const extracted = await res.extract();
+        (extracted as Error).message.should.equal('test');
     });
 
     it('should run the generator and return a result', async () => {
@@ -73,6 +99,46 @@ describe('AsyncResult', () => {
         (await res.getOrElse(10)).should.equal(10);
     });
 
+    it('should run the generator and return err in case of error (1)', async () => {
+        const doubling = async (n: number) => {
+            throw new Error('myErr');
+        };
+        const opt = Promise.resolve(Result.err<number, Error>(new Error('ERR')));
+        const res = AsyncResult.run(function* () {
+            const n = yield opt;
+            const d = yield doubling(n);
+            return Promise.resolve(Result.ok(d));
+        }());
+        (await res.getOrElse(10)).should.equal(10);
+        (await res.extract() as Error).message.should.equal('myErr');
+    });
+
+    it('should run the generator and return none in case of error (2)', async () => {
+        const doubling = async (n: number) => Result.ok<number, Error>(n * 2);
+        const opt = Promise.reject(new Error('test'));
+        const res = AsyncResult.run(function* () {
+            const n = yield opt;
+            const d = yield doubling(n);
+            return Promise.resolve(Result.ok(d));
+        }());
+
+        const extracted = await res.extract();
+        (extracted as Error).message.should.equal('test');
+    });
+
+    it('should run the generator and return none in case of error (3)', async () => {
+        const doubling = async (n: number) => Result.ok<number, Error>(n * 2);
+        const opt = Promise.resolve(Result.ok<number, Error>(2));
+        const res = AsyncResult.run(function* () {
+            const n = yield opt;
+            const d = yield doubling(n);
+            return Promise.reject(new Error('test'));
+        }());
+
+        const extracted = await res.extract();
+        (extracted as Error).message.should.equal('test');
+    });
+
     it('should say yes when it is err', async () => {
         (await AsyncResult.err('test').isErr()).should.be.true;
     });
@@ -82,11 +148,11 @@ describe('AsyncResult', () => {
     });
 
     it('should say no when it has a value and we are checking for err', async () => {
-        (await Result.ok(4).isErr()).should.be.false;
+        (await AsyncResult.ok(4).isErr()).should.be.false;
     });
 
     it('should say no when it is an error and we are checking for ok', async () => {
-        (await Result.err('test').isOk()).should.be.false;
+        (await AsyncResult.err('test').isOk()).should.be.false;
     });
 
     it('should extract the value to the error type when it is an error', async () => {
@@ -97,17 +163,17 @@ describe('AsyncResult', () => {
         (await AsyncResult.ok(4).extract()).should.equal(4);
     });
 
-    /*it('should transform the result to an option with a value', async () => {
+    it('should transform the result to an AsyncOption with a value', async () => {
         const res = AsyncResult.ok(4);
-        res.toOption().isSome().should.be.true;
-        res.toOption().isNone().should.be.false;
+        (await res.toAsyncOption().isSome()).should.be.true;
+        (await res.toAsyncOption().isNone()).should.be.false;
     });
 
-    it('should transform the result to an option with null', async () => {
-        const res = Result.err<string, Error>(new Error('test'));
-        res.toOption().isNone().should.be.true;
-        res.toOption().isSome().should.be.false;
-    });*/
+    it('should transform the result to an AsyncOption with null', async () => {
+        const res = AsyncResult.err<string, Error>(new Error('test'));
+        (await res.toAsyncOption().isNone()).should.be.true;
+        (await res.toAsyncOption().isSome()).should.be.false;
+    });
 
     it('should call the first function when it is an ok', async () => {
         const ifOk = async (o: string) => o.should.equal('ok');
