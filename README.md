@@ -136,7 +136,7 @@ What is happening under the hood? If any function returns Option.none(), the com
 
 Using `flatMap` is cool, but what if we want to have a flow that is closer to imperative programming that many people know so well? You can use [generators](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Objets_globaux/Generator).
 
-```
+```ts
 const finalResult = Option.run(function* () {
     const user = yield findUserById('abc123');
     const email = yield pickEmail(user);
@@ -268,7 +268,7 @@ const finalResult = Result.ok('abc123')
 
 Using `flatMap` is cool, but what if we want to have a flow that is closer to imperative programming that many people know so well? You can use [generators](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Objets_globaux/Generator).
 
-```
+```ts
 const finalResult = Result.run(function* () {
     const user = yield findUserById('abc123');
     const email = yield pickEmail(user);
