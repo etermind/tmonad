@@ -116,7 +116,7 @@ describe('AsyncResult', () => {
     it('should run the generator and return a result', async () => {
         const doubling = async (n: number) => Result.ok(n * 2);
         const opt = Promise.resolve(Result.ok(4));
-        const res = AsyncResult.run(function* () {
+        const res = AsyncResult.run<number, never>(function* () {
             const n = yield opt;
             const d = yield doubling(n);
             return Promise.resolve(Result.ok(d));
@@ -127,7 +127,7 @@ describe('AsyncResult', () => {
     it('should run the generator and return an error', async () => {
         const doubling = async (n: number) => Result.ok(n * 2);
         const opt = Promise.resolve(Result.err<number, Error>(new Error('test')));
-        const res = AsyncResult.run(function* () {
+        const res = AsyncResult.run<number, Error>(function* () {
             const n = yield opt;
             const d = yield doubling(n);
             return Promise.resolve(Result.ok(d));
@@ -140,7 +140,7 @@ describe('AsyncResult', () => {
             throw new Error('myErr');
         };
         const opt = Promise.resolve(Result.err<number, Error>(new Error('ERR')));
-        const res = AsyncResult.run(function* () {
+        const res = AsyncResult.run<number, Error>(function* () {
             const n = yield opt;
             const d = yield doubling(n);
             return Promise.resolve(Result.ok(d));

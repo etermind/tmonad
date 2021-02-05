@@ -84,7 +84,7 @@ describe('Result', () => {
     it('should run the generator and return a result', () => {
         const doubling = (n: number) => Result.ok(n * 2);
         const opt = Result.ok(4);
-        const res = Result.run(function* () {
+        const res = Result.run<number, Error>(function* () {
             const n = yield opt;
             const d = yield doubling(n);
             return Result.ok(d);
@@ -95,7 +95,7 @@ describe('Result', () => {
     it('should run the generator and return an error', () => {
         const doubling = (n: number) => Result.ok(n * 2);
         const opt = Result.err<number, Error>(new Error('test'));
-        const res = Result.run(function* () {
+        const res = Result.run<number, Error>(function* () {
             const n = yield opt;
             const d = yield doubling(n);
             return Result.ok(d);

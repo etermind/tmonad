@@ -26,7 +26,7 @@
         "build:watch": "npx tsc -w --module commonjs",
         "dev:watch": "npx tsc-watch --module commonjs --onSuccess 'npm run dev'",
         "dev": "node --harmony ./dist/lib/index.js",
-        "test": "npx jest --coverage",
+        "test": "npx jest --coverage --no-cache",
         "test:watch": "npx jest --coverage --watch",
         "test:prod": "npm run lint && npm run test -- --no-cache",
         "lint": "npx tslint --project tsconfig.json -t codeFrame 'lib/**/*.ts' 'test/**/*.ts'",
