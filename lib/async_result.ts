@@ -38,8 +38,10 @@ export default class AsyncResult<O, E> {
      * @param gen The generator function
      * @return An option with null or a value
      */
-    static run<R, E>(gen: IterableIterator<Promise<Result<R, E>>>): AsyncResult<R, E> {
-        const step = async (value?: any): Promise<Result<R, E>> => {
+    static run<R, E>(
+        gen: Generator<Promise<Result<R, E>>, Promise<Result<R, E>>, R|undefined>
+    ): AsyncResult<R, E> {
+        const step = async (value?: R): Promise<Result<R, E>> => {
             const result = gen.next(value);
             if (result.done) {
                 try {
