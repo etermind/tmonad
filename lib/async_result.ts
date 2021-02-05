@@ -141,13 +141,11 @@ export default class AsyncResult<O, E> {
     ): AsyncResult<O, R> {
         return new AsyncResult<O, R>(async () => {
             try {
-                const isOk = await this.isOk();
-                if (isOk) {
-                    const extracted = await this.extract() as O;
-                    return Result.ok<O, R>(extracted);
+                const res = await this._runner();
+                if (res.isOk()) {
+                    return Result.ok<O, R>(res.extract() as O);
                 }
-                const extracted = await this.extract() as E;
-                return await f(extracted!);
+                return await f(res.extract() as E);
             } catch (err) {
                 return Result.err<O, R>(err);
             }
