@@ -291,15 +291,17 @@ const returnedValue = result.match(
     (okValue) => doSomething,
     (errValue) => doSomething,
 );
+
+// The returnedValue value is also a Result
 ```
 
-As you can see, `match` takes two functions, the first one is executed when the Result is ok and the second one when the Result is an error. `match` returns the value of one of both function. You can create cool execution flows with `match`, for instance:
+As you can see, `match` takes two functions, the first one is executed when the Result is ok and the second one when the Result is an error. `match` wraps the returned value into a Result (like `map`). There is a `flatMatch` function that has the same behavior as `flatMap`. You can create cool execution flows with it, for instance:
 
 ```ts
 const finalResult = Result.ok('abc123')
     .flatMap(id => findUserById(id))
     .flatMap(user => pickEmail(user))
-    .match(
+    .flatMatch(
         email => Result.ok(email),
         () => Result.ok('contact@example.com')
     )
@@ -314,13 +316,16 @@ In the example above, if the `pickEmail` function returns an error (the email ad
 - `Result.ok<OkType, ErrType>(o: OkType): Result<OkType, ErrType>` to create a result with a value holding by Ok.
 - `Result.err<OkType, ErrType>(e: ErrType): Result<OkType, ErrType>` to create a Result with an error.
 - `.flatMap<R>((v: OkType) => Result<R, ErrType>): Result<R, ErrType>` to apply a function and returns a new Result. This allows to chain the computation (see examples).
+- `.flatMapErr<R>((v: ErrType) => Result<OkType, R>): Result<OkType, R>` to apply a function and returns a new Result. This allows to chain the computation using the err value.
 - `.run<R>(generator: IterableGenerator<Result<R, ErrType>>): Result<R, ErrType>` to use generators instead of flatMap (see examples).
 - `.map<R>((val: O) => R): Result<R, ErrType>` to apply a function and wrap its result into a result. Contrary to flatMap, you cannot chain two maps, because you'll end up having `Result<Result<R, ErrType>, ErrType>` instead of just an `Result<R, ErrType>`.
+- `.mapErr<R>((val: E) => R): Result<O, R|ErrType>` to apply a function and wrap its result into a result. The function takes the error value.
 - `.extract(): OkType|ErrType` to extract the value of Ok or the value of Err.
 - `.getOrElse<R>(defaultValue: R): OkType|R` to extract the value of Ok, or if the Result is an error, return the default value.
 - `.isOk(): boolean` checks if a Result is ok. 
 - `.isErr(): boolean` checks if a Result is an error.
-- `.match<T, U>((o: OkType) => T, (e: ErrType) => U): T|U` to execute the first function when Result holds an Ok value and the second function when it holds an error. 
+- `.match<T, U>((o: OkType) => T, (e: ErrType) => U): Result<T, U>` to execute the first function when Result holds an Ok value and the second function when it holds an error. 
+- `.flatMatch<T, U>((o: OkType) => Result<T, U>, (e: ErrType) => Result<T, U>): Result<T, U>` to execute the first function when Result holds an Ok value and the second function when it holds an error. 
 
 ### AsyncResult
 
@@ -380,13 +385,16 @@ const ok = AsyncResult.run(function* () {
 - `AsyncResult.ok<OkType, ErrType>(o: OkType): AsyncResult<OkType, ErrType>` to create an async result with a value holding by Ok.
 - `AsyncResult.err<OkType, ErrType>(e: ErrType): AsyncResult<OkType, ErrType>` to create an async result with an error.
 - `.flatMap<R>((v: OkType) => Promise<Result<R, ErrType>>): AsyncResult<R, ErrType>` to apply a function and returns a new AsyncResult. This allows to chain the computation (see examples).
+- `.flatMapErr<R>((v: ErrType) => Promise<Result<OkType, R>>): AsyncResult<OkType, R>` to apply a function and returns a new Result. This allows to chain the computation using the err value.
 - `.run<R>(generator: IterableGenerator<Promise<Result<R, ErrType>>>): AsyncResult<R, ErrType>` to use generators instead of flatMap (see examples).
 - `.map<R>((val: O) => R): AsyncResult<R, ErrType>` to apply a function and wrap its result into a result. Contrary to flatMap, you cannot chain two maps, because you'll end up having `AsyncResult<AsyncResult<R, ErrType>, ErrType>` instead of just an `AsyncResult<R, ErrType>`.
+- `.mapErr<R>((val: E) => Promise<R>): AsyncResult<O, R|ErrType>` to apply a function and wrap its result into an async result. The function takes the error value.
 - `.extract(): OkType|ErrType` to extract the value of Ok or the value of Err.
 - `.getOrElse<R>(defaultValue: R): Promise<OkType|R>` to extract the value of Ok, or if the Result is an error, return the default value.
 - `.isOk(): Promise<boolean>` checks if a AsyncResult is ok. 
 - `.isErr(): Promise<boolean>` checks if a AsyncResult is an error.
-- `.match<T, U>((o: OkType) => Promise<T>, (e: ErrType) => Promise<U>): Promise<T|U>` to execute the first function when AsyncResult holds an Ok value and the second function when it holds an error. 
+- `.match<T, U>((o: OkType) => Promise<T>, (e: ErrType) => Promise<U>): AsyncResult<T, U>` to execute the first function when AsyncResult holds an Ok value and the second function when it holds an error. 
+- `.flatMatch<T, U>((o: OkType) => Promise<Result<T, U>>, (e: ErrType) => Promise<Result<T, U>>): AsyncResult<T, U>` to execute the first function when AsyncResult holds an Ok value and the second function when it holds an error. 
 
 
 ## NPM custom commands

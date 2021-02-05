@@ -85,10 +85,32 @@ export default class AsyncResult<O, E> {
     }
 
     /**
+     * Map on error
+     *
+     * @param f The function to be called
+     * @return An async result with an ok or an err
+     */
+    mapErr<R>(f: (wrapped: E) => Promise<R>): AsyncResult<O, R> {
+        return new AsyncResult<O, R>(async () => {
+            try {
+                const isOk = await this.isOk();
+                if (isOk) {
+                    const extracted = await this.extract() as O;
+                    return Result.ok<O, R>(extracted);
+                }
+                const extracted = await this.extract() as E;
+                return Result.err<O, R>(await f(extracted!));
+            } catch (err) {
+                return Result.err<O, R>(err);
+            }
+        });
+    }
+
+    /**
      * Flatmap
      *
      * @param f The function to be called
-     * @return An option with a value or null
+     * @return A new AsyncResult
      */
     flatMap<R>(f: (wrapped: O) => Promise<Result<R, E>>): AsyncResult<R, E> {
         return new AsyncResult<R, E>(async () => {
@@ -107,20 +129,71 @@ export default class AsyncResult<O, E> {
     }
 
     /**
+     * Flatmap on error
+     *
+     * @param f The function to be called
+     * @return A result with an ok or an err
+     *
+     * @return A new AsyncResult
+     */
+    flatMapErr<R>(
+        f: (wrapped: E) => Promise<Result<O, R>>
+    ): AsyncResult<O, R> {
+        return new AsyncResult<O, R>(async () => {
+            try {
+                const isOk = await this.isOk();
+                if (isOk) {
+                    const extracted = await this.extract() as O;
+                    return Result.ok<O, R>(extracted);
+                }
+                const extracted = await this.extract() as E;
+                return await f(extracted!);
+            } catch (err) {
+                return Result.err<O, R>(err);
+            }
+        });
+    }
+
+    /**
      * Match
      *
      * Execute the first function is the result is an ok
      * Execute the second function is the result is an error
+     *
+     * @return A new AsyncResult
      */
-    async match<T, U>(
+    match<T, U>(
         ifOk: (val: O) => Promise<T>,
         ifErr: (val: E) => Promise<U>
-    ): Promise<T | U> {
-        const res = await this._runner();
-        if (res.isErr()) {
-            return await ifErr(res.extract() as E);
-        }
-        return await ifOk(res.extract() as O);
+    ): AsyncResult<T, U> {
+        return new AsyncResult<T, U>(async () => {
+            const res = await this._runner();
+            if (res.isErr()) {
+                return Result.err<T, U>(await ifErr(res.extract() as E));
+            }
+            return Result.ok<T, U>(await ifOk(res.extract() as O));
+        });
+    }
+
+    /**
+     * FlatMatch
+     *
+     * Execute the first function is the result is an ok
+     * Execute the second function is the result is an error
+     *
+     * @return A new AsyncResult
+     */
+    flatMatch<T, U>(
+        ifOk: (val: O) => Promise<Result<T, U>>,
+        ifErr: (val: E) => Promise<Result<T, U>>
+    ): AsyncResult<T, U> {
+        return new AsyncResult<T, U>(async () => {
+            const res = await this._runner();
+            if (res.isErr()) {
+                return await ifErr(res.extract() as E);
+            }
+            return await ifOk(res.extract() as O);
+        });
     }
 
     /**

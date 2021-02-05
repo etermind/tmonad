@@ -89,11 +89,24 @@ export default class Result<O, E> {
      * @param f The function to be called
      * @return A result with an ok or an err
      */
-    map<R>(f: (wrapped: O) => R): Result<R, E> | Result<O, E> {
+    map<R>(f: (wrapped: O) => R): Result<R|O, E> {
         if (this._type === ResultType.ERR) {
             return this;
         }
         return Result.ok(f(this._ok!));
+    }
+
+    /**
+     * Map on error
+     *
+     * @param f The function to be called
+     * @return A result with an ok or an err
+     */
+    mapErr<R>(f: (wrapped: E) => R): Result<O, E|R> {
+        if (this._type === ResultType.OK) {
+            return this;
+        }
+        return Result.err<O, R>(f(this._err!));
     }
 
     /**
@@ -113,6 +126,21 @@ export default class Result<O, E> {
     }
 
     /**
+     * Flatmap on error
+     *
+     * @param f The function to be called
+     * @return A result with an ok or an err
+     */
+    flatMapErr<R>(
+        f: (wrapped: E) => Result<O, R>
+    ): Result<O, R> {
+        if (this._type === ResultType.OK) {
+            return Result.ok<O, R>(this._ok!);
+        }
+        return f(this._err!);
+    }
+
+    /**
      * Match
      *
      * Execute the first function is the result is an ok
@@ -122,7 +150,27 @@ export default class Result<O, E> {
      * @param ifErr The function to execute when result is an err
      * @return The returned value of the first or second function
      */
-    match<T, U>(ifOk: (val: O) => T, ifErr: (val: E) => U): T | U {
+    match<T, U>(ifOk: (val: O) => T, ifErr: (val: E) => U): Result<T, U> {
+        if (this._type === ResultType.ERR) {
+            return Result.err<T, U>(ifErr(this._err!));
+        }
+        return Result.ok<T, U>(ifOk(this._ok!));
+    }
+
+    /**
+     * Flat Match
+     *
+     * Execute the first function is the result is an ok
+     * Execute the second function is the result is an error
+     *
+     * @param ifOk The function to execute when result is an ok
+     * @param ifErr The function to execute when result is an err
+     * @return The returned value of the first or second function
+     */
+    flatMatch<T, U>(
+        ifOk: (val: O) => Result<T, U>,
+        ifErr: (val: E) => Result<T, U>
+    ): Result<T, U> {
         if (this._type === ResultType.ERR) {
             return ifErr(this._err!);
         }

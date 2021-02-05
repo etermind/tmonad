@@ -52,6 +52,24 @@ describe('AsyncResult', () => {
         (extracted as Error).message.should.equal('test');
     });
 
+    it('should apply the function on error and return a result (1)', async () => {
+        const res = AsyncResult.ok<number, string>(4);
+        const res2 = res.mapErr(async () => 8);
+        (await res2.getOrElse(10)).should.equal(4);
+    });
+
+    it('should apply the function on error and return a result (2)', async () => {
+        const res = AsyncResult.err<number, string>('test');
+        const res2 = res.mapErr(async () => 'nein');
+        (await res2.getOrElse(10)).should.equal(10);
+    });
+
+    it('should apply the function on error and return an error if the promise throws', async () => {
+        const res = AsyncResult.err<number, Error>(new Error('test'));
+        const res2 = res.mapErr<Error>(async () => { throw Error('error'); });
+        (await res2.extract() as Error).message.should.equal('error');
+    });
+
     it('should apply the function and return the value', async () => {
         (await AsyncResult.ok(4)
             .flatMap(async n => Result.ok(n * 2))
@@ -75,6 +93,24 @@ describe('AsyncResult', () => {
 
         const extracted = await res.extract();
         (extracted as Error).message.should.equal('test');
+    });
+
+    it('should apply the function on error and return the value (1)', async () => {
+        (await AsyncResult.ok(4)
+            .flatMapErr(async () => Result.ok(2))
+            .getOrElse(10)).should.equal(4);
+    });
+
+    it('should apply the function on error and return the value (2)', async () => {
+        (await AsyncResult.err<number, number>(4)
+            .flatMapErr(async n => Result.ok<number, number>(n * 2))
+            .getOrElse(10)).should.equal(8);
+    });
+
+    it('should apply the function on error and return an error if the promise throws', async () => {
+        const res = AsyncResult.err<number, Error>(new Error('test'));
+        const res2 = res.flatMapErr<Error>(async () => { throw Error('error'); });
+        (await res2.extract() as Error).message.should.equal('error');
     });
 
     it('should run the generator and return a result', async () => {
@@ -182,7 +218,7 @@ describe('AsyncResult', () => {
         };
 
         const res = AsyncResult.ok('ok');
-        await res.match(ifOk, ifErr);
+        res.match(ifOk, ifErr);
     });
 
     it('should call the second function when it is an ok', async () => {
@@ -190,7 +226,7 @@ describe('AsyncResult', () => {
         const ifErr = async (e: number) => e.should.equal(4);
 
         const res = AsyncResult.err<string, number>(4);
-        await res.match(ifOk, ifErr);
+        res.match(ifOk, ifErr);
     });
 
     it('should call the second function when it is an err', async () => {
@@ -198,7 +234,7 @@ describe('AsyncResult', () => {
         const ifErr = async (e: number) => e.should.equal(4);
 
         const res = AsyncResult.err<string, number>(4);
-        await res.match(ifOk, ifErr);
+        res.match(ifOk, ifErr);
     });
 
     it('should retrieve the returned value of the 1st function when it is an ok', async () => {
@@ -206,7 +242,7 @@ describe('AsyncResult', () => {
         const ifErr = async () => 'test';
 
         const res = AsyncResult.ok('test');
-        (await res.match(ifOk, ifErr)).should.equal(4);
+        (await res.match(ifOk, ifErr).extract()).should.equal(4);
     });
 
     it('should retrieve the returned value of the 2nd function when it is an err', async () => {
@@ -214,6 +250,22 @@ describe('AsyncResult', () => {
         const ifErr = async () => 4;
 
         const res = AsyncResult.err<number, string>('test');
-        (await res.match(ifOk, ifErr)).should.equal(4);
+        (await res.match(ifOk, ifErr).extract()).should.equal(4);
+    });
+
+    it('should retrieve the returned value of the 1st function when it is an Ok', async () => {
+        const ifOk = async () => Result.ok<string, number>('test');
+        const ifErr = async () => Result.err<string, number>(4);
+
+        const res = AsyncResult.ok<number, string>(4);
+        (await res.flatMatch(ifOk, ifErr).extract()).should.equal('test');
+    });
+
+    it('should retrieve the returned value of the 2nd function when it is an error', async () => {
+        const ifOk = async () => Result.ok<string, number>('test');
+        const ifErr = async () => Result.err<string, number>(4);
+
+        const res = AsyncResult.err<number, string>('test');
+        (await res.flatMatch(ifOk, ifErr).extract() as number).should.equal(4);
     });
 });

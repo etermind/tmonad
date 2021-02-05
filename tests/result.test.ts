@@ -39,6 +39,18 @@ describe('Result', () => {
         res2.getOrElse(10).should.equal(10);
     });
 
+    it('should apply the function on the error and return a new Result (1)', () => {
+        const res = Result.ok<number>(4);
+        const res2 = res.mapErr(n => n * 2);
+        res2.getOrElse(10).should.equal(4);
+    });
+
+    it('should apply the function on the error and return a new Result (2)', () => {
+        const res = Result.err<number, number>(4);
+        const res2 = res.mapErr(n => n * 2);
+        res2.extract().should.equal(8);
+    });
+
     it('should apply the function and return the value', () => {
         Result.ok(4)
             .flatMap(n => Result.ok(n * 2))
@@ -49,6 +61,24 @@ describe('Result', () => {
         Result.err<number, Error>(new Error('test'))
             .flatMap(n => Result.ok(n * 2))
             .getOrElse(10).should.equal(10);
+    });
+
+    it('should apply the function on the error and return a new Result', () => {
+        Result.err<string, number>(4)
+            .flatMapErr(n => Result.err<string, number>(n * 2))
+            .getOrElse(10).should.equal(10);
+    });
+
+    it('should apply the function on the error and return a new Result', () => {
+        Result.err<number, number>(4)
+            .flatMapErr(n => Result.ok<number, number>(n * 2))
+            .getOrElse(10).should.equal(8);
+    });
+
+    it('should not apply the function when it is ok', () => {
+        Result.ok<number, Error>(4)
+            .flatMapErr(n => Result.ok<number, Error>(8))
+            .getOrElse(10).should.equal(4);
     });
 
     it('should run the generator and return a result', () => {
@@ -119,7 +149,7 @@ describe('Result', () => {
         res.match(ifOk, ifErr);
     });
 
-    it('should call the second function when it is an ok', () => {
+    it('should call the second function when it is an error', () => {
         const ifOk = (o: string) => o.should.equal('ok');
         const ifErr = (e: number) => e.should.equal(4);
 
@@ -140,7 +170,7 @@ describe('Result', () => {
         const ifErr = () => 'test';
 
         const res = Result.ok('test');
-        res.match(ifOk, ifErr).should.equal(4);
+        res.match(ifOk, ifErr).extract().should.equal(4);
     });
 
     it('should retrieve the returned value of the 2nd function when it is an err', () => {
@@ -148,6 +178,27 @@ describe('Result', () => {
         const ifErr = () => 4;
 
         const res = Result.err<number, string>('test');
-        res.match(ifOk, ifErr).should.equal(4);
+        res.match(ifOk, ifErr).extract().should.equal(4);
+    });
+
+    it('should call the first function when it is an ok and return the Result', () => {
+        const ifOk = (o: string) => Result.ok<number, Error>(4);
+        const ifErr = (e: Error) => {
+            throw e;
+        };
+
+        const res = Result.ok<string, Error>('ok');
+        const res2 = res.flatMatch(ifOk, ifErr);
+        res2.extract().should.equal(4);
+    });
+
+    it('should call the second function when it is an error and return the Result', () => {
+        const ifOk = (o: string) => Result.ok<string, string>(o);
+        const ifErr = (e: number) => Result.ok<string, string>('nein');
+
+        const res = Result.err<string, number>(4);
+        const res2 = res.flatMatch(ifOk, ifErr);
+        res2.isOk().should.be.true;
+        res2.extract().should.equal('nein');
     });
 });
