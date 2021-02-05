@@ -54,12 +54,12 @@ export default class Result<O, E> {
      * @param gen The generator function
      * @return A result with an error or an ok
      */
-    static run<R, E>(gen: IterableIterator<Result<R, E>>): Result<R, E> {
+    static run<R, E>(gen: Generator<Result<R, E>, Result<R, E>, R|undefined>): Result<R, E> {
         /**
          * One step a a time
          *
          */
-        const step = (value?: any): any => {
+        const step = (value?: R): Result<R, E> => {
             const result = gen.next(value);
             if (result.done) {
                 return result.value;
