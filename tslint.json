@@ -37,7 +37,7 @@
             // enforce PascalCase for classes, interfaces, enums, etc. Remember, there are still no underscores allowed.
             {"type": "type", "format": "PascalCase"},
             // interface names must start with "I". The following part of the name must be valid PascalCase
-            {"type": "interface", "prefix": "I"},
+            // {"type": "interface", "regex": "[A-Z]*"},
             {"type": "genericTypeParameter", "regex": "^[EORTUV]$"}
             // enum members must be in PascalCase. Without this config, enumMember would inherit UPPER_CASE from public static const property
             //{"type": "enumMember", "format": "PascalCase"}
