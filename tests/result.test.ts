@@ -34,7 +34,7 @@ describe('Result', () => {
     });
 
     it('should apply the function and return a result (with err)', () => {
-        const res = Err<number, Error>(new Error('test'));
+        const res = Err(new Error('test'));
         const res2 = res.map(n => n * 2);
         res2.getOrElse(10).should.equal(10);
     });
@@ -52,40 +52,40 @@ describe('Result', () => {
     });
 
     it('should apply the function and return the value', () => {
-        Ok<number, Error>(4)
-            .flatMap<number>(n => Ok<number, Error>(n * 2))
+        Ok(4)
+            .flatMap(n => Ok(n * 2))
             .getOrElse(10).should.equal(8);
     });
 
     it('should apply the function and return err', () => {
-        Err<number, Error>(new Error('test'))
-            .flatMap<number>((n: number) => Ok(n * 2))
+        Err(new Error('test'))
+            .flatMap((n: number) => Ok(n * 2))
             .getOrElse(10).should.equal(10);
 
     });
 
     it('should apply the function on the error and return a new Result', () => {
-        Err<any, number>(4)
-            .flatMapErr<number>(n => Err(n * 2))
+        Err(4)
+            .flatMapErr(n => Err(n * 2))
             .getOrElse(10).should.equal(10);
     });
 
     it('should apply the function on the error and return a new Result', () => {
-        Err<number, number>(4)
-            .flatMapErr<number>(n => Ok(n * 2))
+        Err(4)
+            .flatMapErr(n => Ok(n * 2))
             .getOrElse(10).should.equal(8);
     });
 
     it('should not apply the function when it is ok', () => {
-        Ok<number, Error>(4)
-            .flatMapErr<number>(() => Ok(8))
+        Ok(4)
+            .flatMapErr(() => Ok(8))
             .getOrElse(10).should.equal(4);
     });
 
     it('should run the generator and return a result', () => {
         const doubling = (n: number) => Ok(n * 2);
         const opt = Ok(4);
-        const res = opt.run<number>(function* () {
+        const res = opt.run<number, Error>(function* () {
             const n = yield;
             const d = yield doubling(n);
             return Ok(d);
@@ -96,7 +96,7 @@ describe('Result', () => {
     it('should run the generator and return an error', () => {
         const doubling = (n: number) => Ok(n * 2);
         const opt = Err(new Error('test'));
-        const res = opt.run<number>(function* () {
+        const res = opt.run<number, Error>(function* () {
             const n = yield;
             const d = yield doubling(n);
             return Ok(d);
