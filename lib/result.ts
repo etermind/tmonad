@@ -1,87 +1,84 @@
-import Option from './option';
+import { Some, None, Option } from '.';
 
 export enum ResultType {
     OK,
     ERR,
 }
 
-/**
- * Result Monad
- */
-export default class Result<O, E> {
+export interface Match<T, E, U> {
+    /**
+     * Ok function
+     */
+    ok: (val: T) => U;
+
+    /**
+     * Err function
+     */
+    err: (val: E) => U;
+}
+
+export interface FlatMatch<T, E, U> {
+    /**
+     * Ok function
+     */
+    ok: (val: T) => Result<U, E>;
+
+    /**
+     * Err function
+     */
+    err: (val: E) => Result<U, E>;
+}
+
+export interface Result<T, E> {
     /**
      * What type is the result
      */
-    private _type: ResultType;
+    type: ResultType;
 
     /**
-     * Holding the result
+     * Is result Ok
      */
-    private _ok?: O;
+    isOk(): boolean;
 
     /**
-     * Holding the error
+     * Is result Err
      */
-    private _err?: E;
-
-    private constructor(type: ResultType, ok?: O, err?: E) {
-        this._type = type;
-        this._ok = ok;
-        this._err = err;
-    }
+    isErr(): boolean;
 
     /**
-     * Return a result with an ok
+     * Get the value from the result (can be the Ok value or the Err value
+     * @return The value from the result
+     */
+    extract(): T | E;
+
+    /**
+     * Get the value from the result, but if it's of type Err, return the defaultValue
+     * @param defaultValue The default value
+     * @return The value from the result or the default value
+     */
+    getOrElse<R>(defaultValue: R): T|R;
+
+    /**
+     * Match
      *
-     * @param value The value
-     * @return Result<O, E> with an ok
-     */
-    static ok<O, E = never>(value: O) {
-        return new Result<O, E>(ResultType.OK, value);
-    }
-
-    /**
-     * Return a result with an error
-     * @return Result<O, E> with an error
-     */
-    static err<O, E>(err: E) {
-        return new Result<O, E>(ResultType.ERR, undefined, err);
-    }
-
-    /**
-     * Run a series of results into a generator
+     * Execute the ok function in match if the result is an ok
+     * Execute the err function in match if the result is an error
      *
-     * @param gen The generator function
-     * @return A result with an error or an ok
+     * @param match The match object
+     * @return The returned value of the first or second function
      */
-    static run<R, E>(gen: Generator<Result<R, E>, Result<R, E>, R|undefined>): Result<R, E> {
-        /**
-         * One step a a time
-         *
-         */
-        const step = (value?: R): Result<R, E> => {
-            const result = gen.next(value);
-            if (result.done) {
-                return result.value;
-            }
-            return result.value.flatMap(step);
-        };
-        return step();
-    }
+    match<U>(f: Match<T, E, U>): Result<U, E> | Result<T, U>;
 
     /**
-     * Check if result is an ok
+     * Flat Match
+     *
+     * Execute the ok function in match if the result is an ok
+     * Execute the err function in match if the result is an error
+     *
+     * @param match object
+     * @return The returned value of the first or second function
      */
-    isOk(): boolean {
-        return this._type === ResultType.OK;
-    }
-
-    /**
-     * Check if result is an error
-     */
-    isErr(): boolean {
-        return this._type === ResultType.ERR;
-    }
+    // flatMatch<U>(f: FlatMatch<T, E, U>): Result<T, E> | Result<U, E>;
 
     /**
      * Map
@@ -89,12 +86,7 @@ export default class Result<O, E> {
      * @param f The function to be called
      * @return A result with an ok or an err
      */
-    map<R>(f: (wrapped: O) => R): Result<R|O, E> {
-        if (this._type === ResultType.ERR) {
-            return this;
-        }
-        return Result.ok(f(this._ok!));
-    }
+    map<U>(f: (val: T) => U): Result<U, E>;
 
     /**
      * Map on error
@@ -102,12 +94,7 @@ export default class Result<O, E> {
      * @param f The function to be called
      * @return A result with an ok or an err
      */
-    mapErr<R>(f: (wrapped: E) => R): Result<O, E|R> {
-        if (this._type === ResultType.OK) {
-            return this;
-        }
-        return Result.err<O, R>(f(this._err!));
-    }
+    mapErr<U>(f: (err: E) => U): Result<T, U>;
 
     /**
      * Flatmap
@@ -115,15 +102,7 @@ export default class Result<O, E> {
      * @param f The function to be called
      * @return A result with an ok or an err
      */
-    flatMap<R>(
-        f: (wrapped: O) => Result<R, E>
-    ): Result<R, E> {
-        if (this._type === ResultType.ERR) {
-            return Result.err<R, E>(this._err!);
-        }
-        return f(this._ok!);
-
-    }
+    flatMap<U>(f: (val: T) => Result<U, E>): Result<U, E>;
 
     /**
      * Flatmap on error
@@ -131,83 +110,273 @@ export default class Result<O, E> {
      * @param f The function to be called
      * @return A result with an ok or an err
      */
-    flatMapErr<R>(
-        f: (wrapped: E) => Result<O, R>
-    ): Result<O, R> {
-        if (this._type === ResultType.OK) {
-            return Result.ok<O, R>(this._ok!);
-        }
-        return f(this._err!);
-    }
+    flatMapErr<U>(f: (err: E) => Result<U, E>): Result<T, E> | Result<U, E>;
 
     /**
-     * Match
+     * Run using generator
      *
-     * Execute the first function is the result is an ok
-     * Execute the second function is the result is an error
-     *
-     * @param ifOk The function to execute when result is an ok
-     * @param ifErr The function to execute when result is an err
-     * @return The returned value of the first or second function
+     * @param gen The generator
+     * @return A new result
      */
-    match<T, U>(ifOk: (val: O) => T, ifErr: (val: E) => U): Result<T, U> {
-        if (this._type === ResultType.ERR) {
-            return Result.err<T, U>(ifErr(this._err!));
-        }
-        return Result.ok<T, U>(ifOk(this._ok!));
-    }
+    run<U>(gen: Generator<Result<T, E>|undefined, Result<U, E>, T>): Result<U, E>;
 
     /**
-     * Flat Match
+     * Transform into option
      *
-     * Execute the first function is the result is an ok
-     * Execute the second function is the result is an error
-     *
-     * @param ifOk The function to execute when result is an ok
-     * @param ifErr The function to execute when result is an err
-     * @return The returned value of the first or second function
+     * @return Option
      */
-    flatMatch<T, U>(
-        ifOk: (val: O) => Result<T, U>,
-        ifErr: (val: E) => Result<T, U>
-    ): Result<T, U> {
-        if (this._type === ResultType.ERR) {
-            return ifErr(this._err!);
-        }
-        return ifOk(this._ok!);
-    }
+    toOption(): Option<T>;
+}
+
+export interface ResOk<T, E = never> extends Result<T, E> {
+    /**
+     * Get the value from the result (can be the Ok value or the Err value
+     * @return The value from the result
+     */
+    extract(): T;
 
     /**
      * Get the value from the result, but if it's of type Err, return the defaultValue
      * @param defaultValue The default value
      * @return The value from the result or the default value
      */
-    getOrElse<R>(defaultValue: R): O|R {
-        if (this._type === ResultType.ERR) {
-            return defaultValue;
-        }
-        return this._ok!;
-    }
+    getOrElse<R>(defaultValue: R): T;
 
+    /**
+     * Match
+     *
+     * Execute the ok function in match if the result is an ok
+     * Execute the err function in match if the result is an error
+     *
+     * @param match The match object
+     * @return The returned value of the first or second function
+     */
+    match<U>(fn: Match<T, never, U>): Result<U, never>;
+
+    /**
+     * Flat Match
+     *
+     * Execute the ok function in match if the result is an ok
+     * Execute the err function in match if the result is an error
+     *
+     * @param match object
+     * @return The returned value of the first or second function
+     */
+    // flatMatch<U>(f: FlatMatch<T, E, U>): Result<U, E>;
+
+    /**
+     * Map
+     *
+     * @param f The function to be called
+     * @return A result with an ok or an err
+     */
+    map<U>(f: (val: T) => U): ResOk<U, never>;
+
+    /**
+     * Map on error
+     *
+     * @param f The function to be called
+     * @return A result with an ok or an err
+     */
+    mapErr<U>(f: (err: E) => U): ResOk<T, never>;
+
+    /**
+     * Flatmap
+     *
+     * @param f The function to be called
+     * @return A result with an ok or an err
+     */
+    flatMap<U>(f: (val: T) => Result<U, E>): Result<U, E>;
+
+    /**
+     * Flatmap on error
+     *
+     * @param f The function to be called
+     * @return A result with an ok or an err
+     */
+    flatMapErr<U>(f: (err: E) => Result<U, E>): Result<T, E>;
+
+    /**
+     * Transform into option
+     *
+     * @return Option
+     */
+    toOption(): Option<T>;
+}
+
+export interface ResErr<T, E> extends Result<T, E> {
     /**
      * Get the value from the result (can be the Ok value or the Err value
      * @return The value from the result
      */
-    extract(): O | E {
-        if (this._type === ResultType.ERR) {
-            return this._err!;
-        }
-        return this._ok!;
-    }
+    extract(): E;
 
     /**
-     * Transform to option
-     * @return An option
+     * Get the value from the result, but if it's of type Err, return the defaultValue
+     * @param defaultValue The default value
+     * @return The value from the result or the default value
      */
-    toOption(): Option<O> {
-        if (this._type === ResultType.ERR) {
-            return Option.none<O>();
-        }
-        return Option.some<O>(this._ok!);
-    }
+    getOrElse<R>(defaultValue: R): R;
+
+    /**
+     * Match
+     *
+     * Execute the ok function in match if the result is an ok
+     * Execute the err function in match if the result is an error
+     *
+     * @param match The match object
+     * @return The returned value of the first or second function
+     */
+    match<U>(fn: Match<never, E, U>): Result<never, U>;
+
+    /**
+     * Flat Match
+     *
+     * Execute the ok function in match if the result is an ok
+     * Execute the err function in match if the result is an error
+     *
+     * @param match object
+     * @return The returned value of the first or second function
+     */
+    // flatMatch<U>(f: FlatMatch<T, E, U>): Result<U, E>;
+
+    /**
+     * Map
+     *
+     * @param f The function to be called
+     * @return A result with an ok or an err
+     */
+    map<U>(f: (val: T) => U): ResErr<never, E>;
+
+    /**
+     * Map on error
+     *
+     * @param f The function to be called
+     * @return A result with an ok or an err
+     */
+    mapErr<U>(f: (err: E) => U): ResErr<never, U>;
+
+    /**
+     * Flatmap
+     *
+     * @param f The function to be called
+     * @return A result with an ok or an err
+     */
+    flatMap<U>(f: (val: T) => Result<U, E>): ResErr<never, E>;
+
+    /**
+     * Flatmap on error
+     *
+     * @param f The function to be called
+     * @return A result with an ok or an err
+     */
+    flatMapErr<U>(f: (err: E) => Result<U, E>): Result<U, E>;
+
+    /**
+     * Transform into option
+     *
+     * @return Option
+     */
+    toOption(): Option<T>;
+}
+
+/**
+ * Ok object
+ */
+export function Ok<T, E = never>(val: T): ResOk<T, E> { // tslint:disable-line
+    return {
+        type: ResultType.OK,
+        isOk(): boolean {
+            return true;
+        },
+        isErr(): boolean {
+            return false;
+        },
+        extract(): T {
+            return val;
+        },
+        getOrElse<R>(_: R): T {
+            return val;
+        },
+        match<U>(matchObject: Match<T, never, U>): ResOk<U, never> {
+            return Ok(matchObject.ok(val));
+        },
+        /* flatMatch<U>(matchObject: FlatMatch<T, E, U>): Result<U, E> {
+            return matchObject.ok(val);
+        }, */
+        map<U>(fn: (val: T) => U): ResOk<U, never> {
+            return Ok(fn(val));
+        },
+        mapErr<U>(_fn: (err: E) => U): ResOk<T, never> {
+            return Ok(val);
+        },
+        flatMap<U>(f: (val: T) => Result<U, E>): Result<U, E> {
+            return f(val);
+        },
+        flatMapErr(): ResOk<T, E> {
+            return Ok(val);
+        },
+        toOption(): Option<T> {
+            return Some(val!);
+        },
+        run<U>(gen: Generator<Result<T, E>|undefined, Result<U, E>, T>): Result<U, E> {
+            /**
+             * One step a a time
+             */
+            const step = (value: T): Result<U, E> => {
+                const result = gen.next(value);
+                result.value = result.value === undefined ? this : result.value;
+                if (result.done) {
+                    return result.value;
+                }
+                return result.value!.flatMap(step);
+            };
+            return step(val);
+        },
+    };
+}
+
+/**
+ * Err object
+ */
+export function Err<T, E>(err: E): ResErr<T, E> { // tslint:disable-line
+    return {
+        type: ResultType.ERR,
+        isOk(): boolean {
+            return false;
+        },
+        isErr(): boolean {
+            return true;
+        },
+        extract(): E {
+            return err;
+        },
+        getOrElse<R>(defaultValue: R): R {
+            return defaultValue;
+        },
+        match<U>(matchObject: Match<never, E, U>): ResErr<never, U>  {
+            return Err(matchObject.err(err));
+        },
+        /* flatMatch<U>(matchObject: FlatMatch<T, E, U>): Result<U, E> {
+            return matchObject.err(err);
+        }, */
+        map(): ResErr<never, E> {
+            return Err(err);
+        },
+        mapErr<U>(fn: (err: E) => U): ResErr<never, U> {
+            return Err(fn(err));
+        },
+        flatMap(): ResErr<never, E> {
+            return Err(err);
+        },
+        flatMapErr<U>(f: (err: E) => Result<U, E>): Result<U, E> {
+            return f(err);
+        },
+        toOption(): Option<T> {
+            return None;
+        },
+        run() {
+            return Err(err);
+        },
+    };
 }

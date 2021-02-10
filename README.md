@@ -27,8 +27,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md)
 ```
 .
 ├── lib
-│   ├── async_option.ts
-│   ├── async_result.ts
+│   ├── future.ts
 │   ├── index.ts
 │   ├── option.ts
 │   └── result.ts
@@ -37,8 +36,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md)
 ├── package.json
 ├── README.md
 ├── tests
-│   ├── async_option.test.ts
-│   ├── async_result.test.ts
+│   ├── future.test.ts
 │   ├── option.test.ts
 │   └── result.test.ts
 ├── tsconfig.json
@@ -51,16 +49,16 @@ The structure is simple: `lib` contains the implementation of the library and `t
 
 ### Option
 
-The Option type allows error handling and representing missing values. An Option value can be either Some (meaning it holds a) or None (meaning it has no value). The `some` method is used for wrapping present values while the `none` method is used when a value is absent. It becomes easy to manipulate optional values without null checking or exception handling.
+The Option type allows error handling and representing missing values. An Option value can be either Some (meaning it holds a) or None (meaning it has no value). The `Some` constructor is used for wrapping present values while the `None` constructor is used when a value is absent. It becomes easy to manipulate optional values without null checking or exception handling.
 
 ```ts
-import { Option } from '@etermind/tmonad';
+import { Some, None, Option } from '@etermind/tmonad';
 
 // You can create an Option with some value using .some()
-const someValue = Option.some(4); // Option holds a value of 4 (it is a number);
+const someValue = Some(4); // Option holds a value of 4 (it is a number);
 
 // You can create an empty Option using .none()
-const noValue = Option.none(); // Option holds no value (= null).
+const noValue = None; // Option holds no value (= null).
 
 // You can extract the value if you want
 const extractedValue = someValue.extract(); // Returns 4
@@ -104,22 +102,22 @@ How can we use `Option` to the rescue?
 ```ts
 const findUserById = (id: string) => {
     if(id === 'abc123') {
-        return Option.some({ firstname: 'John', lastname: 'Smith', id: 'abc123', email: 'john.smith@doe.com' });
+        return Some({ firstname: 'John', lastname: 'Smith', id: 'abc123', email: 'john.smith@doe.com' });
     }
-    return Option.none();
+    return None;
 }
 
-const pickEmail = (user: any) => user.email ? Option.some(user.email) : Option.none();
+const pickEmail = (user: any) => user.email ? Some(user.email) : None;
 
 const sendEmail = (email: string, content: string) => {
     // Send email HERE
     if(/* An error occurred */) {
-        return Option.some(false);
+        return Some(false);
     }
-    return Option.some(true);
+    return Some(true);
 }
 
-const finalResult = Option.some('abc123')
+const finalResult = Some('abc123')
     .flatMap(id => findUserById(id))
     .flatMap(user => pickEmail(user))
     .flatMap(email => sendEmail(email, 'Hello from TMonad'))
@@ -130,18 +128,38 @@ const finalResult = Option.some('abc123')
 
 In this implementation, no null checking, no nesting, each of your intermediate function returns an option and you can chain the call using `flatMap` to get the final result.
 
-What is happening under the hood? If any function returns Option.none(), the computation stops and return Option.none().
+What is happening under the hood? If any function returns `None`, the computation stops and return `None`.
+
+#### Using match
+
+Sometimes it can be helpful to run a function when the Option contains a value or another function when it has no value.
+
+To do so, we use the `match` function:
+
+```ts
+const opt = Some(4);
+
+const matchObject = {
+    some: (v: number) => v * 4,
+    none: () => 2, 
+};
+
+const returnedOption = opt.match(matchObject);
+
+// The returnedOption is also an Option 
+```
 
 #### Option with generators
 
 Using `flatMap` is cool, but what if we want to have a flow that is closer to imperative programming that many people know so well? You can use [generators](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Objets_globaux/Generator).
 
 ```ts
-const finalResult = Option.run(function* () {
-    const user = yield findUserById('abc123');
+const finalResult = Some('abc123').run<boolean>(val, function* () {
+    const id = yield; // Yield the value of Some('abc123')
+    const user = yield findUserById(id);
     const email = yield pickEmail(user);
     const ok = yield sendEmail(email, 'Hello from TMonad');
-    return Option.some(ok);
+    return Some(ok);
 }());
 
 // finalResult will be an option with either true / false or null
@@ -151,80 +169,17 @@ The behaviour is **exactly** the same as using flatMap, only the way of writing 
 
 #### Option API
 
-- `Option.some<T>(x: T): Option<T>` to create an Option with a value.
-- `Option.none<T>(): Option<T>` to create an Option with no value.
+- `Some<T>(x: T): Option<T>` to create an Option with a value.
+- `None: Option<T>` to create an Option with no value.
 - `.flatMap<R>((v: T) => Option<R>): Option<R>` to apply a function and returns a new Option. This allows to chain the computation (see examples).
-- `.run<R>(generator: IterableGenerator<Option<R>>): Option<R>` to use generators instead of flatMap (see examples).
+- `.run<R>(generator: Generator<Option<R>, Option<U>, T>): Option<R>` to use generators instead of flatMap (see examples).
 - `.map<R>((val: T) => R): Option<R>` to apply a function and wrap its result into an option. Contrary to flatMap, you cannot chain two maps, because you'll end up having `Option<Option<R>>` instead of just an `Option<R>`.
 - `.extract(): T|null` to extract the value of an option (returns null if no value).
 - `.getOrElse<R>(defaultValue: R): T|R` to extract the value, or if the Option is none, return the default value.
 - `.isSome(): boolean` checks if an Option contains a value.
 - `.isNone(): boolean` checks if an Option contains no value.
-
-### AsyncOption
-
-The AsyncOption is a wrapper around `Promise<Option<T>>`. It allows to use async / await and promises with Option. Let's see an example below:
-
-```ts
-import { AsyncOption } from '@etermind/tmonad';
-
-const findUserById = async (id: string) => {
-    try {
-        const response = await fetch(`https://api.github.com/orgs/${id}`);
-        const data = await response.json();
-        return Option.some(data);
-    } catch {
-        return Option.none();
-    }
-}
-
-const pickEmail = async (user: any) => user.email ? Option.some(user.email) : Option.none();
-
-const sendEmail = async (email: string, content: string) => {
-    // Send email HERE
-    if(/* An error occurred */) {
-        return Option.some(false);
-    }
-    return Option.some(true);
-}
-
-// It is needed since Node cannot execute await directly at the root level (contrary to Deno)
-async function run() {
-    const ok = await AsyncOption.some('nodejs')
-        .flatMap(findUserById)
-        .flatMap(pickEmail)
-        .flatMap(sendEmail)
-        .extract();
-
-    // ok will be either true / false or null
-}
-```
-#### AsyncOption with generators
-
-Using `flatMap` is cool, but what if we want to have a flow that is closer to imperative programming that many people know so well? You can use [generators](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Objets_globaux/Generator).
-
-```ts
-const ok = AsyncOption.run(function* () {
-    const user = yield findUserById('abc123');
-    const email = yield pickEmail(user);
-    const ok = yield sendEmail(email, 'Hello from TMonad');
-    return Promise.resolve(Option.some(ok));
-}());
-
-// finalResult will be an AsyncOption with either true / false or null
-```
-
-#### AsyncOption API
-
-- `AsyncOption.some<T>(x: T): AsyncOption<T>` to create an AsyncOption with a value.
-- `AsyncOption.none<T>(): AsyncOption<T>` to create an AsyncOption with no value.
-- `.flatMap<R>((v: T) => Promise<Option<R>>): AsyncOption<R>` to apply a function and returns a new AsyncOption. This allows to chain the computation (see examples).
-- `.run<R>(generator: IterableGenerator<Promise<Option<R>>>): AsyncOption<R>` to use generators instead of flatMap (see examples).
-- `.map<R>((val: T) => R): AsyncOption<R>` to apply a function and wrap its result into an async option. Contrary to flatMap, you cannot chain two maps, because you'll end up having `AsyncOption<AsyncOption<R>>` instead of just an `AsyncOption<R>`.
-- `.extract(): Promise<T|null>` to extract the value of an async option (returns null if no value).
-- `.getOrElse<R>(defaultValue: R): Promise<T|R>` to extract the value, or if the AsyncOption is none, return the default value.
-- `.isSome(): Promise<boolean>` checks if an AsyncOption contains a value.
-- `.isNone(): Promise<boolean>` checks if an AsyncOption contains no value.
+- `match<T, U>({ some: (v: T) => U, none: () => U }): Option<U>` runs the `some` function when the Option contains a value, otherwise run the `none` function.
+- `flatMatch<T, U>({ some: (v: T) => Option<U>, none: () => Option<U> }): Option<U>` runs the `some` function when the Option contains a value, otherwise run the `none` function.
 
 ### Result
 
@@ -236,26 +191,26 @@ The Option type allows error handling and representing missing values, but when 
 This way, you know what is going on in your program. Let's look at an example:
 
 ```ts
-import { Result } from '@etermind/tmonad';
+import { Ok, Err, Result } from '@etermind/tmonad';
 
 const findUserById = (id: string) => {
     if(id === 'abc123') {
-        return Result.ok({ firstname: 'John', lastname: 'Smith', id: 'abc123', email: 'john.smith@doe.com' });
+        return Ok({ firstname: 'John', lastname: 'Smith', id: 'abc123', email: 'john.smith@doe.com' });
     }
-    return Result.err(new Error('Unable to find the user'));
+    return Err(new Error('Unable to find the user'));
 }
 
-const pickEmail = (user: any) => user.email ? Result.ok(user.email) : Result.err(new Error('Missing email address'));
+const pickEmail = (user: any) => user.email ? Ok(user.email) : Err(new Error('Missing email address'));
 
 const sendEmail = (email: string, content: string) => {
     // Send email HERE
     if(/* An error occurred */) {
-        return Result.err(new Error('Unable to send the message'));
+        return Err(new Error('Unable to send the message'));
     }
-    return Result.ok(true);
+    return Ok(true);
 }
 
-const finalResult = Result.ok('abc123')
+const finalResult = Ok('abc123')
     .flatMap(id => findUserById(id))
     .flatMap(user => pickEmail(user))
     .flatMap(email => sendEmail(email, 'Hello from TMonad'))
@@ -269,11 +224,12 @@ const finalResult = Result.ok('abc123')
 Using `flatMap` is cool, but what if we want to have a flow that is closer to imperative programming that many people know so well? You can use [generators](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Objets_globaux/Generator).
 
 ```ts
-const finalResult = Result.run(function* () {
-    const user = yield findUserById('abc123');
-    const email = yield pickEmail(user);
-    const ok = yield sendEmail(email, 'Hello from TMonad');
-    return Result.ok(ok);
+const finalResult = Ok('abc123').run<boolean>(function* () {
+   const id = yield;
+   const user = yield findUserById('abc123');
+   const email = yield pickEmail(user);
+   const ok = yield sendEmail(email, 'Hello from TMonad');
+   return Ok(ok);
 }());
 
 // finalResult will be a result with either Ok(true) or Err(...)
@@ -281,40 +237,27 @@ const finalResult = Result.run(function* () {
 
 #### Using match
 
-As a Result can take two states (Ok & Err), sometimes it can be useful to do something with both states, as opposed to an option where None indicates that there is nothing useful.
+As a Result can take two states (Ok & Err), sometimes it can be useful to do something with both states.
 
 To do so, we use the `match` function:
 
 ```ts
-const result = Result.ok(4);
-const returnedValue = result.match(
-    (okValue) => doSomething,
-    (errValue) => doSomething,
-);
+const result = Ok(4);
+
+const matchObject = {
+    ok: (v: number) => doSomething,
+    err: (e: Error) => doSomething, 
+};
+
+const returnedValue = result.match(matchObject);
 
 // The returnedValue value is also a Result
 ```
 
-As you can see, `match` takes two functions, the first one is executed when the Result is ok and the second one when the Result is an error. `match` wraps the returned value into a Result (like `map`). There is a `flatMatch` function that has the same behavior as `flatMap`. You can create cool execution flows with it, for instance:
-
-```ts
-const finalResult = Result.ok('abc123')
-    .flatMap(id => findUserById(id))
-    .flatMap(user => pickEmail(user))
-    .flatMatch(
-        email => Result.ok(email),
-        () => Result.ok('contact@example.com')
-    )
-    .flatMap(email => sendEmail(email, 'Hello from TMonad'))
-```
-
-In the example above, if the `pickEmail` function returns an error (the email address cannot be found), the `match` takes care of creating a new Result with a fallback email. 
-
-
 #### Result API
 
-- `Result.ok<OkType, ErrType>(o: OkType): Result<OkType, ErrType>` to create a result with a value holding by Ok.
-- `Result.err<OkType, ErrType>(e: ErrType): Result<OkType, ErrType>` to create a Result with an error.
+- `Ok<OkType, never>(o: OkType): Result<OkType, ErrType>` to create a result with a value holding by Ok.
+- `Err<never, ErrType>(e: ErrType): Result<OkType, ErrType>` to create a Result with an error.
 - `.flatMap<R>((v: OkType) => Result<R, ErrType>): Result<R, ErrType>` to apply a function and returns a new Result. This allows to chain the computation (see examples).
 - `.flatMapErr<R>((v: ErrType) => Result<OkType, R>): Result<OkType, R>` to apply a function and returns a new Result. This allows to chain the computation using the err value.
 - `.run<R>(generator: IterableGenerator<Result<R, ErrType>>): Result<R, ErrType>` to use generators instead of flatMap (see examples).
@@ -324,77 +267,91 @@ In the example above, if the `pickEmail` function returns an error (the email ad
 - `.getOrElse<R>(defaultValue: R): OkType|R` to extract the value of Ok, or if the Result is an error, return the default value.
 - `.isOk(): boolean` checks if a Result is ok. 
 - `.isErr(): boolean` checks if a Result is an error.
-- `.match<T, U>((o: OkType) => T, (e: ErrType) => U): Result<T, U>` to execute the first function when Result holds an Ok value and the second function when it holds an error. 
-- `.flatMatch<T, U>((o: OkType) => Result<T, U>, (e: ErrType) => Result<T, U>): Result<T, U>` to execute the first function when Result holds an Ok value and the second function when it holds an error. 
+- `.match<T, U>({ ok: (val: T) => U, err: (e: E) => U }): Result<U, E> | Result<T, U>` to execute the first function when Result holds an Ok value and the second function when it holds an error. 
 
-### AsyncResult
+### Future 
 
-The AsyncResult is a wrapper around `Promise<Result<OkType, ErrType>>`. It allows to use async / await and promises with Result. Let's see an example below:
+Futures are promises on steroïds. This is a combination of a Result inside a promise that can, therefore, never throw. Like Results you can chain Futures. Let's see an example
 
 ```ts
-import { AsyncResult, Result } from '@etermind/tmonad';
+import { Future } from '@etermind/tmonad';
 
 const findUserById = async (id: string) => {
-    try {
-        const response = await fetch(`https://api.github.com/orgs/${id}`);
-        const data = await response.json();
-        return Result.ok(data);
-    } catch(err) {
-        return Result.err(err);
-    }
+    const response = await fetch(`https://api.github.com/orgs/${id}`);
+    const data = await response.json();
+    return data;
 }
 
-const pickEmail = async (user: any) => user.email ? Result.ok(user.email) : Result.err(new Error('Missing email address'));
+const pickEmail = (user: any) => new Promise((resolve, reject) => user.email ? resolve(user.email) : reject(new Error('Missing email address'));
 
 const sendEmail = async (email: string, content: string) => {
     // Send email HERE
     if(/* An error occurred */) {
-        return Result.err(new Error('Unable to send the message'));
+        throw new Error('Unable to send the message'));
     }
-    return Result.ok(true);
+    return true;
 }
 
 async function run() { 
-    const finalResult = await AsyncResult.ok('abc123')
-        .flatMap(id => findUserById(id))
-        .flatMap(user => pickEmail(user))
-        .flatMap(email => sendEmail(email, 'Hello from TMonad'))
-        .extract();
+    const finalResult = await new Future(findUserById('abc123'))
+        .flatMap(id => new Future(findUserById(id)))
+        .flatMap(user => new Future(pickEmail(user)))
+        .flatMap(email => new Future(sendEmail(email, 'Hello from TMonad')))
+        .getOrElse(false);
 
-    // finalResult will be either true or one of the three possible errors. 
+    // finalResult will be either true or false. 
 }
 ```
 
-#### AsyncResult with generators
+#### Using match
+
+As a Future can be a success or a failure, sometimes it can be useful to do something with both states.
+
+To do so, we use the `match` function:
+
+```ts
+const fut = new Future(Promise.resolve(4));
+
+const matchObject = {
+    onSuccess: async (v: number) => v * 4,
+    onFailure: async (e: Error) => {}, 
+};
+
+const returnedValue = fut.match(matchObject);
+
+// The returnedValue value is also a Future 
+```
+
+#### Future with generators
 
 Using `flatMap` is cool, but what if we want to have a flow that is closer to imperative programming that many people know so well? You can use [generators](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Objets_globaux/Generator).
 
 ```ts
-const ok = AsyncResult.run(function* () {
-    const user = yield findUserById('abc123');
+const ok = new Future(Promise.resolve('abc123')).run<boolean>(function* () {
+    const id = yield; // Retrieve value from Promise.resolve('abc123')
+    const user = yield findUserById(id);
     const email = yield pickEmail(user);
     const ok = yield sendEmail(email, 'Hello from TMonad');
-    return Promise.resolve(AsyncResult.ok(ok));
+    return Promise.resolve(ok);
 }());
 
-// finalResult will be an AsyncResult with either true / false or null
+// ok will be a Future with either true / false or an error 
 ```
 
-#### AsyncResult API
+#### Future API
 
-- `AsyncResult.ok<OkType, ErrType>(o: OkType): AsyncResult<OkType, ErrType>` to create an async result with a value holding by Ok.
-- `AsyncResult.err<OkType, ErrType>(e: ErrType): AsyncResult<OkType, ErrType>` to create an async result with an error.
-- `.flatMap<R>((v: OkType) => Promise<Result<R, ErrType>>): AsyncResult<R, ErrType>` to apply a function and returns a new AsyncResult. This allows to chain the computation (see examples).
-- `.flatMapErr<R>((v: ErrType) => Promise<Result<OkType, R>>): AsyncResult<OkType, R>` to apply a function and returns a new Result. This allows to chain the computation using the err value.
-- `.run<R>(generator: IterableGenerator<Promise<Result<R, ErrType>>>): AsyncResult<R, ErrType>` to use generators instead of flatMap (see examples).
-- `.map<R>((val: O) => R): AsyncResult<R, ErrType>` to apply a function and wrap its result into a result. Contrary to flatMap, you cannot chain two maps, because you'll end up having `AsyncResult<AsyncResult<R, ErrType>, ErrType>` instead of just an `AsyncResult<R, ErrType>`.
-- `.mapErr<R>((val: E) => Promise<R>): AsyncResult<O, R|ErrType>` to apply a function and wrap its result into an async result. The function takes the error value.
-- `.extract(): OkType|ErrType` to extract the value of Ok or the value of Err.
-- `.getOrElse<R>(defaultValue: R): Promise<OkType|R>` to extract the value of Ok, or if the Result is an error, return the default value.
-- `.isOk(): Promise<boolean>` checks if a AsyncResult is ok. 
-- `.isErr(): Promise<boolean>` checks if a AsyncResult is an error.
-- `.match<T, U>((o: OkType) => Promise<T>, (e: ErrType) => Promise<U>): AsyncResult<T, U>` to execute the first function when AsyncResult holds an Ok value and the second function when it holds an error. 
-- `.flatMatch<T, U>((o: OkType) => Promise<Result<T, U>>, (e: ErrType) => Promise<Result<T, U>>): AsyncResult<T, U>` to execute the first function when AsyncResult holds an Ok value and the second function when it holds an error. 
+- `new Future<T>(promise: Promise<T>): Future<T>` to create a future. 
+- `.flatMap<R>((v: T) => Future<R>): Future<R>` to apply a function and returns a new Future. This allows to chain the computation (see examples).
+- `.flatMapErr<R>((v: Error) => Future<R>): Future<R>` to apply a function and returns a new Future. This allows to chain the computation using the err value.
+- `.run<R>(generator: Generator<Promise<T>, Promise<U>, T>): Future<R>` to use generators instead of flatMap (see examples).
+- `.map<R>((val: T) => R): Future<R>` to apply a function and wrap its result into a Future. Contrary to flatMap, you cannot chain two maps, because you'll end up having `Future<Future<T>>` instead of just an `Future<R>`.
+- `.mapErr<R>((val: E) => Promise<R>): Future<O>` to apply a function and wrap its result into a Future. The function takes the error value.
+- `.extract(): T ` to extract the value of Ok or throw an error 
+- `.getOrElse<R>(defaultValue: R): Promise<T|R>` to extract the value of Ok, or if the Result is an error, return the default value.
+- `.isSuccess(): Promise<boolean>` checks if a Future is a success. 
+- `.isFailure(): Promise<boolean>` checks if a Future is an error.
+- `.match<T, U>({ onSuccess: (o: T) => U, onFailure: (e: Error) => U }): Future<T>` to execute the onSuccess function when Future is a success and the onFailure function when it is a failure.
+- `.flatMatch<T, U>({ onSuccess: (o: T) => Future<U>, onFailure: (e: Error) => Future<U> })): Future<U>` to execute the onSuccess function when Future is a success and the onFailure function when it is a failure. 
 
 
 ## NPM custom commands
