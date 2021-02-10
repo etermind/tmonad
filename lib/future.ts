@@ -43,11 +43,11 @@ export class Future<T> { // tslint:disable-line
         this._executor = async () => {
             try {
                 const val = await promise;
-                return Ok<T, Error>(val);
+                return Ok(val);
             } catch (err) {
                 const e = err instanceof Error ?
                     err : new Error(String(err));
-                return Err<T, Error>(e);
+                return Err(e);
             }
         };
     }
