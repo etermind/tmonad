@@ -153,13 +153,9 @@ export class Future<T> { // tslint:disable-line
             const res = await this._executor();
             if (res.isErr()) {
                 const e = res.extract() as Error;
-                try {
-                    return f(e)._promise;
-                } catch (err) {
-                    return Promise.reject(err);
-                }
+                return await f(e)._promise;
             }
-            return this._promise;
+            return res.extract() as T;
         })();
         return new Future(promise);
     }
