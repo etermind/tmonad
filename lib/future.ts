@@ -75,7 +75,7 @@ export class Future<T> { // tslint:disable-line
         if (res.isErr()) {
             throw res.extract();
         }
-        return res.extract() as T;
+        return res.extract();
     }
 
     /**
@@ -88,7 +88,7 @@ export class Future<T> { // tslint:disable-line
         if (res.isErr()) {
             return defaultValue;
         }
-        return res.extract() as T;
+        return res.extract();
     }
 
     /**
@@ -103,7 +103,7 @@ export class Future<T> { // tslint:disable-line
             if (res.isErr()) {
                 throw res.extract();
             }
-            return await f(res.extract() as T);
+            return await f(res.extract());
         })();
         return new Future<U>(promise);
     }
@@ -120,7 +120,7 @@ export class Future<T> { // tslint:disable-line
             if (res.isErr()) {
                 return await f(res.extract());
             }
-            return res.extract() as T;
+            return res.extract();
         })();
         return new Future(promise);
     }
@@ -137,7 +137,7 @@ export class Future<T> { // tslint:disable-line
             if (res.isErr()) {
                 throw res.extract();
             }
-            return f(res.extract() as T)._promise;
+            return f(res.extract())._promise;
         })();
         return new Future<U>(promise);
     }
@@ -155,7 +155,7 @@ export class Future<T> { // tslint:disable-line
                 const e = res.extract() as Error;
                 return await f(e)._promise;
             }
-            return res.extract() as T;
+            return res.extract();
         })();
         return new Future(promise);
     }
@@ -167,9 +167,9 @@ export class Future<T> { // tslint:disable-line
         const promise = (async () => {
             const res = await this._executor();
             if (res.isErr()) {
-                return await matchObject.onFailure(res.extract() as Error);
+                return await matchObject.onFailure(res.extract());
             }
-            return await matchObject.onSuccess(res.extract() as T);
+            return await matchObject.onSuccess(res.extract());
         })();
         return new Future<U>(promise);
     }
@@ -181,9 +181,9 @@ export class Future<T> { // tslint:disable-line
         const promise = (async () => {
             const res = await this._executor();
             if (res.isErr()) {
-                return matchObject.onFailure(res.extract() as Error)._promise;
+                return matchObject.onFailure(res.extract())._promise;
             }
-            return matchObject.onSuccess(res.extract() as T)._promise;
+            return matchObject.onSuccess(res.extract())._promise;
         })();
         return new Future<U>(promise);
     }
@@ -195,7 +195,7 @@ export class Future<T> { // tslint:disable-line
      */
     async toOption(): Promise<Option<T>> {
         const res = await this._executor();
-        return res.isErr() ? None : Some<T>(res.extract() as T) ;
+        return res.isErr() ? None : Some<T>(res.extract()) ;
     }
 
     /**

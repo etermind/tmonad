@@ -38,12 +38,12 @@ export interface ResultOps<T, E> {
     /**
      * Is result Ok
      */
-    isOk(): boolean;
+    isOk(): this is Ok<T, E>;
 
     /**
-     * Is result Err
+     * Type narrowing for err
      */
-    isErr(): boolean;
+    isErr(): this is Err<T, E>;
 
     /**
      * Get the value from the result, but if it's of type Err, return the defaultValue

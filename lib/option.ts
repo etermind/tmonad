@@ -42,12 +42,12 @@ export interface Option<T> {
     /**
      * Check if option is some
      */
-    isSome(): boolean;
+    isSome(): this is OptSome<T>;
 
     /**
      * Check if option is none
      */
-    isNone(): boolean;
+    isNone(): this is OptNone<T>;
 
     /**
      * Map

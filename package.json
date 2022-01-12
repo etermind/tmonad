@@ -1,6 +1,6 @@
 {
     "name": "@etermind/tmonad",
-    "version": "2.0.2",
+    "version": "2.1.0",
     "description": "A set of tools to use pure functional programming with generators in TypeScript",
     "keywords": [
         "functional",
