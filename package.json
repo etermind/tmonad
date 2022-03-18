@@ -1,6 +1,6 @@
 {
     "name": "@etermind/tmonad",
-    "version": "2.1.0",
+    "version": "3.0.0",
     "description": "A set of tools to use pure functional programming with generators in TypeScript",
     "keywords": [
         "functional",
@@ -14,7 +14,7 @@
     "module": "dist/lib/index.js",
     "types": "dist/types/index.d.ts",
     "engines": {
-        "node": ">=12"
+        "node": ">=14"
     },
     "repository": {
         "type": "git",
@@ -26,33 +26,35 @@
         "build:watch": "npx tsc -w --module commonjs",
         "dev:watch": "npx tsc-watch --module commonjs --onSuccess 'npm run dev'",
         "dev": "node --harmony ./dist/lib/index.js",
-        "test": "npx jest --coverage --no-cache",
+        "test": "npx jest --coverage",
         "test:watch": "npx jest --coverage --watch",
         "test:prod": "npm run lint && npm run test -- --no-cache",
-        "lint": "npx tslint --project tsconfig.json -t codeFrame 'lib/**/*.ts' 'test/**/*.ts'",
-        "docs": "npx typedoc --out docs --theme minimal lib"
+        "lint": "npx eslint --fix '{lib/**/*.ts,tests/**/*.ts}'",
+        "docs": "npx typedoc --out docs lib"
     },
     "dependencies": {
         "@types/node": "^12"
     },
     "devDependencies": {
-        "@types/chai": "^4.2.11",
-        "@types/jest": "^26.0.20",
-        "@types/sinon": "^9.0.10",
-        "chai": "4.x",
+        "@types/chai": "^4.3.0",
+        "@types/jest": "^26.0.24",
+        "@types/sinon": "^9.0.11",
+        "@typescript-eslint/eslint-plugin": "^4.33.0",
+        "@typescript-eslint/parser": "^4.33.0",
+        "benchmarkify": "^3.0.0",
+        "chai": "^4.3.6",
+        "eslint": "^7.32.0",
+        "eslint-plugin-jsdoc": "^32.3.4",
         "gitlab-npm-audit-parser": "^1.x",
         "jest": "^26.x",
         "jest-config": "^26.x",
         "lodash.camelcase": "^4.3.0",
         "rimraf": "^2.7.1",
-        "sinon": "^9.x",
-        "ts-jest": "^26.x",
+        "sinon": "^9.2.4",
+        "ts-jest": "^26.5.6",
         "tsc-watch": "1.x",
-        "tslint": "^6.x",
-        "tslint-config-airbnb": "^5.11.2",
-        "tslint-language-service": "^0.9.9",
-        "typedoc": "^0.20.x",
-        "typescript": "^4.x"
+        "typedoc": "^0.22",
+        "typescript": "^4.6.2"
     },
     "jest": {
         "transform": {
