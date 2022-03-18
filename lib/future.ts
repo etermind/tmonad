@@ -1,236 +1,237 @@
-import { Err, Ok, Result, Some, None, Option } from '.';
+import { None, Some, Option } from './option';
+import { Err, Ok, Result } from './result';
 
-export interface Match<T, U> {
+/**
+ * Match
+ */
+export interface Match<T, U, E = Error> {
     /**
      * Ok function
      */
-    onSuccess: (val: T) => Promise<U>;
+    onSuccess: (val: T) => U;
 
     /**
      * Err function
      */
-    onFailure: (val: Error) => Promise<U>;
+    onFailure: (val: E) => U;
 }
 
-export interface FlatMatch<T, U> {
+/**
+ * FlatMatch
+ */
+export interface FlatMatch<T, U, E = Error> {
     /**
      * Ok function
      */
-    onSuccess: (val: T) => Future<U>;
+    onSuccess: (val: T) => Future<U, E>;
 
     /**
      * Err function
      */
-    onFailure: (val: Error) => Future<U>;
+    onFailure: (val: E) => Future<U, E>;
 }
 
 /**
  * Future
  */
-export class Future<T> { // tslint:disable-line
+export class Future<T, E = Error> { // tslint:disable-line
     /**
-     * Promise
+     * Action
      */
-    protected _promise: Promise<T>;
+    protected _action: (resolve: (d: T) => void, reject: (e: E) => void) => () => boolean;
 
     /**
-     * Executor
+     * Constructor
+     * @param action - Action to be run
      */
-    protected _executor: () => Promise<Result<T, Error>>;
-
-    constructor(promise: Promise<T>) {
-        this._promise = promise;
-        this._executor = async () => {
-            try {
-                const val = await promise;
-                return Ok(val);
-            } catch (err) {
-                const e = err instanceof Error ?
-                    err : new Error(String(err));
-                return Err(e);
-            }
-        };
+    constructor(action: (resolve: (d: T) => void, reject: (e: E) => void) => () => boolean)  {
+        this._action = action;
     }
 
     /**
-     * Is a success
+     * Create a future that always resolves
+     * @param x - The data
+     * @param cancel - Cancel function
+     * @returns the new future
      */
-    async isSuccess(): Promise<boolean> {
-        return (await this._executor()).isOk();
+    static of<T>(x: T, cancel: () => boolean = () => true): Future<T, never> {
+        return new Future((resolve, _) => {
+            resolve(x);
+            return cancel;
+        });
     }
 
     /**
-     * Is a failure
+     * Create a future that always rejects
+     * @param x - The error
+     * @param cancel - Cancel function
+     * @returns the new future
      */
-    async isFailure(): Promise<boolean> {
-        return (await this._executor()).isErr();
+    static reject<E>(x: E, cancel: () => boolean = () => true): Future<never, E> {
+        return new Future((_, reject) => {
+            reject(x);
+            return cancel;
+        });
     }
 
     /**
-     * Get the value from the future (can throw)
-     * @return The value
+     * Create a future from a Promise
+     * @param x - The promise
+     * @param m - A mapper between an Error and the type of E
+     * @returns the Future
      */
-    async extract(): Promise<T> {
-        const res = await this._executor();
-        if (res.isErr()) {
-            throw res.extract();
+    static fromP<T, E = Error>(
+        x: Promise<T>,
+        m: (e: Error) => E = e => e as any
+    ): Future<T, E> {
+        return new Future((resolve, reject) => {
+            x.then(d => resolve(d)).catch((e: Error) => reject(m(e)));
+            return () => true;
+        });
+    }
+
+    /**
+     * Run the future
+     * @param success - The success function
+     * @param error - The error function
+     * @returns the cancel function
+     */
+    extract(success: (d: T) => void, error: (e: E) => void): () => boolean {
+        return this._action(success, error);
+    }
+
+    /**
+     * Await a future
+     * @returns the promise
+     */
+    await(): Promise<T> {
+        return new Promise((resolve, reject) => this.extract(resolve, reject));
+    }
+
+    /**
+     * Await a future by getting a default value if it rejects
+     * @param defaultValue - The default value
+     * @returns the promise
+     */
+    awaitOrElse<U>(defaultValue: U): Promise<T|U> {
+        return new Promise<U|T>((resolve) => {
+            this.extract((d) => {
+                resolve(d);
+            }, () => resolve(defaultValue));
+        });
+    }
+
+    /**
+     * Transform into an option
+     * @returns the option
+     */
+    async toOption(): Promise<Option<T>> {
+        try {
+            return Some(await this.await());
         }
-        return res.extract();
+        catch (err) {
+            return None;
+        }
     }
 
     /**
-     * Get the value from the future, but if it's a failure, return the defaultValue
-     * @param defaultValue The default value
-     * @return The value from the future or the default value
+     * Transform into a result
+     * @returns the result
      */
-    async getOrElse<R>(defaultValue: R): Promise<T|R> {
-        const res = await this._executor();
-        if (res.isErr()) {
-            return defaultValue;
+    async toResult(): Promise<Result<T, E>> {
+        try {
+            return Ok(await this.await());
         }
-        return res.extract();
+        catch (err: any) {
+            return Err(err);
+        }
     }
 
     /**
      * Map
      *
-     * @param f The function to be called
-     * @return A new future
+     * @param f - The function to be called
+     * @returns A new future
      */
-    map<U>(f: (val: T) => Promise<U>): Future<U> {
-        const promise = (async () => {
-            const res = await this._executor();
-            if (res.isErr()) {
-                throw res.extract();
-            }
-            return await f(res.extract());
-        })();
-        return new Future<U>(promise);
+    map<U>(f: (val: T) => U): Future<U, E> {
+        return this.flatMap(x => Future.of(f(x)));
     }
 
     /**
      * Map on error
      *
-     * @param f The function to be called
-     * @return A future
+     * @param f - The function to be called
+     * @returns A future
      */
-    mapErr<U>(f: (err: any) => Promise<U>): Future<U | T> {
-        const promise = (async () => {
-            const res = await this._executor();
-            if (res.isErr()) {
-                return await f(res.extract());
-            }
-            return res.extract();
-        })();
-        return new Future(promise);
+    mapErr<U>(f: (err: E) => U): Future<U | T, E> {
+        return this.flatMapErr(x => Future.of(f(x)));
     }
 
     /**
      * Flatmap
      *
-     * @param f The function to be called
-     * @return A new future
+     * @param f - The function to be called
+     * @returns A new future
      */
-    flatMap<U>(f: (val: T) => Future<U>): Future<U> {
-        const promise = (async () => {
-            const res = await this._executor();
-            if (res.isErr()) {
-                throw res.extract();
-            }
-            return f(res.extract())._promise;
-        })();
-        return new Future<U>(promise);
+    flatMap<U>(f: (val: T) => Future<U, E>): Future<U, E> {
+        return new Future((resolve, reject) =>
+            this.extract(
+                (data: T) => {
+                    try {
+                        return f(data).extract(resolve, reject);
+                    }
+                    catch (err: any) {
+                        return reject(err);
+                    }
+                },
+                (e: E) => reject(e)
+            ));
     }
 
     /**
      * Flatmap on failure
      *
-     * @param f The function to be called
-     * @return A new future
+     * @param f - The function to be called
+     * @returns A new future
      */
-    flatMapErr<U>(f: (err: Error) => Future<U>): Future<U|T> {
-        const promise = (async () => {
-            const res = await this._executor();
-            if (res.isErr()) {
-                const e = res.extract() as Error;
-                return await f(e)._promise;
-            }
-            return res.extract();
-        })();
-        return new Future(promise);
+    flatMapErr<U>(f: (err: E) => Future<U, E>): Future<U|T, E> {
+        return new Future((resolve, reject) =>
+            this.extract(
+                (data: T) => resolve(data),
+                (e: E) => {
+                    try {
+                        return f(e).extract(resolve, reject);
+                    }
+                    catch (err: any) {
+                        return reject(err);
+                    }
+                }
+            ));
     }
 
     /**
      * Match
+     * @param matchObject - The match object
+     * @returns the new future
      */
-    match<U>(matchObject: Match<T, U>): Future<U> {
-        const promise = (async () => {
-            const res = await this._executor();
-            if (res.isErr()) {
-                return await matchObject.onFailure(res.extract());
-            }
-            return await matchObject.onSuccess(res.extract());
-        })();
-        return new Future<U>(promise);
+    match<U>(matchObject: Match<T, U, E>): Future<U, E> {
+        /* istanbul ignore next */
+        return this.flatMatch({
+            onSuccess: x => Future.of(matchObject.onSuccess(x)),
+            onFailure: e => Future.of(matchObject.onFailure(e)),
+        });
     }
 
     /**
      * FlatMatch
+     * @param matchObject - The match object
+     * @returns the new future
      */
-    flatMatch<U>(matchObject: FlatMatch<T, U>): Future<U> {
-        const promise = (async () => {
-            const res = await this._executor();
-            if (res.isErr()) {
-                return matchObject.onFailure(res.extract())._promise;
-            }
-            return matchObject.onSuccess(res.extract())._promise;
-        })();
-        return new Future<U>(promise);
-    }
-
-    /**
-     * Transform into Option
-     *
-     * @return An option
-     */
-    async toOption(): Promise<Option<T>> {
-        const res = await this._executor();
-        return res.isErr() ? None : Some<T>(res.extract()) ;
-    }
-
-    /**
-     * Transform into Result
-     *
-     * @return A result
-     */
-    async toResult(): Promise<Result<T, Error>> {
-        const res = await this._executor();
-        return res;
-    }
-
-    /**
-     * Run a series of futures into a generator
-     *
-     * @param gen The generator function
-     * @return A new future
-     */
-    run<U>(gen: Generator<Promise<T>|undefined, Promise<U>, T>): Future<U> {
-        return new Future<U>((async () => {
-            const step = async (value: T): Promise<U> => {
-                const result = gen.next(value);
-                result.value = result.value === undefined ? this._promise : result.value;
-                if (result.done) {
-                    return result.value;
-                }
-                try {
-                    const newVal = await result.value;
-                    return await step(newVal as T);
-                } catch (err) {
-                    throw err;
-                }
-            };
-            const res = await this._executor();
-            return await step(res.extract() as T);
-        })());
+    flatMatch<U>(matchObject: FlatMatch<T, U, E>): Future<U, E> {
+        return new Future((resolve, reject) =>
+            this.extract(
+                (data: T) => matchObject.onSuccess(data).extract(resolve, reject),
+                (e: E) => matchObject.onFailure(e).extract(resolve, reject)
+            ));
     }
 }

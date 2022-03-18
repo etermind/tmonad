@@ -33,6 +33,9 @@ export interface Match<T, U> {
     none: () => U;
 }
 
+/**
+ * Base interface for option
+ */
 export interface Option<T> {
     /**
      * Option type
@@ -52,105 +55,112 @@ export interface Option<T> {
     /**
      * Map
      *
-     * @param f The function to be called
-     * @return An option with a value or null
+     * @param f - The function to be called
+     * @returns An option with a value or null
      */
     map<R>(f: (wrapped: T) => R): Option<R>;
 
     /**
      * Flatmap
      *
-     * @param f The function to be called
-     * @return An option with a value or null
+     * @param f - The function to be called
+     * @returns An option with a value or null
      */
     flatMap<R>(f: (wrapped: T) => Option<R>): Option<R>;
 
     /**
      * Match
      *
-     * @param fn Match interface
-     * @return The result of the matched function
+     * @param fn - Match interface
+     * @returns The result of the matched function
      */
     match<U>(fn: Match<T, U>): Option<U>;
 
     /**
      * FlatMatch
      *
-     * @param fn FlatMatch interface
-     * @return The result of the matched function
+     * @param fn - FlatMatch interface
+     * @returns The result of the matched function
      */
     flatMatch<U>(fn: FlatMatch<T, U>): Option<U>;
 
     /**
      * Run using generator
      *
-     * @param gen The generator
-     * @return A new option
+     * @param gen - The generator
+     * @returns A new option
      */
     run<U>(gen: Generator<Option<T>|undefined, Option<U>, T>): Option<U>;
 
     /**
      * Get the value from option, but if it's null, return the defaultValue
-     * @param defaultValue The default value
-     * @return The value from the option or the default value
+     * @param defaultValue - The default value
+     * @returns The value from the option or the default value
      */
     getOrElse<R>(defaultValue: R): T|R;
 
     /**
      * Get the value from option
-     * @return The value from the option or none if no value exists
+     * @returns The value from the option or none if no value exists
      */
     extract(): T | null;
 }
 
+/**
+ * Some
+ */
 export interface OptSome<T> extends Option<T> {
     /**
      * Map
      *
-     * @param f The function to be called
-     * @return An option with a value or null
+     * @param f - The function to be called
+     * @returns An option with a value or null
      */
     map<R>(f: (wrapped: T) => R): OptSome<R>;
 
     /**
      * Get the value from option, but if it's null, return the defaultValue
-     * @param defaultValue The default value
-     * @return The value from the option or the default value
+     * @param defaultValue - The default value
+     * @returns The value from the option or the default value
      */
     getOrElse<R>(defaultValue: R): T;
 
     /**
      * Get the value from option
-     * @return The value from the option or none if no value exists
+     * @returns The value from the option or none if no value exists
      */
     extract(): T;
 }
 
+/**
+ * None
+ */
 export interface OptNone<T> extends Option<T> {
     /**
      * Map
      *
-     * @param f The function to be called
-     * @return An option with a value or null
+     * @param f - The function to be called
+     * @returns An option with a value or null
      */
     map<R>(f: (wrapped: T) => R): OptNone<R>;
 
     /**
      * Get the value from option, but if it's null, return the defaultValue
-     * @param defaultValue The default value
-     * @return The value from the option or the default value
+     * @param defaultValue - The default value
+     * @returns The value from the option or the default value
      */
     getOrElse<R>(defaultValue: R): R;
 
     /**
      * Get the value from option
-     * @return The value from the option or none if no value exists
+     * @returns The value from the option or none if no value exists
      */
     extract(): null;
 }
 
 /**
  * None constructor
+ * @returns None obj
  */
 export function noneConstructor<T>(): OptNone<T> {
     return {
@@ -187,6 +197,8 @@ export function noneConstructor<T>(): OptNone<T> {
 
 /**
  * Some constructor
+ * @param val - The hold value
+ * @returns Some
  */
 export function someConstructor<T>(val: T): OptSome<T> {
     return {
@@ -219,6 +231,8 @@ export function someConstructor<T>(val: T): OptSome<T> {
         run<U>(gen: Generator<Option<T>, Option<U>, T|undefined>): Option<U> {
             /**
              * One step a a time
+             * @param value - The value
+             * @returns value
              */
             const step = (value: T): Option<U> => {
                 const result = gen.next(value);
@@ -235,14 +249,16 @@ export function someConstructor<T>(val: T): OptSome<T> {
 
 /**
  * Some
+ * @param val - Value
+ * @returns none or some
  */
-export function Some<T>(val?: T | null): Option<T> { // tslint:disable-line
+export function Some<T>(val?: T | null): Option<T> { // eslint-disable-line
     return val === undefined || val === null
-    ? noneConstructor<T>()
-    : someConstructor<T>(val as T);
+        ? noneConstructor<T>()
+        : someConstructor<T>(val as T);
 }
 
 /**
  * None
  */
-export const None = noneConstructor<any>(); // tslint:disable-line
+export const None = noneConstructor<any>(); // eslint-disable-line

@@ -271,7 +271,7 @@ const returnedValue = result.match(matchObject);
 
 ### Future 
 
-Futures are promises on steroïds. This is a combination of a Result inside a promise that can, therefore, never throw. Like Results you can chain Futures. Let's see an example
+Futures are promises on steroïds. They allow for async computation, but contrary to promises and just like Results you can chain Futures. Let's see an example
 
 ```ts
 import { Future } from '@etermind/tmonad';
@@ -293,15 +293,59 @@ const sendEmail = async (email: string, content: string) => {
 }
 
 async function run() { 
-    const finalResult = await new Future(findUserById('abc123'))
-        .flatMap(id => new Future(findUserById(id)))
-        .flatMap(user => new Future(pickEmail(user)))
-        .flatMap(email => new Future(sendEmail(email, 'Hello from TMonad')))
-        .getOrElse(false);
+    const finalResult = await Future.fromP(findUserById('abc123'))
+        .flatMap(id => Future.fromP(findUserById(id)))
+        .flatMap(user => Future.fromP(pickEmail(user)))
+        .flatMap(email => Future.fromP(sendEmail(email, 'Hello from TMonad')))
+        .awaitOrElse(false);
 
     // finalResult will be either true or false. 
 }
 ```
+
+You can instantiate your own Future, just like you do with a promise:
+
+```ts
+const fut1 = new Future<any>((resolve, reject) => {
+    try {
+        // Do something
+        const res = myAsyncComputation();
+        resolve(res);
+    } catch (err: any) {
+        reject(err);
+    }
+    return () => true; // Return a cancellation function (more details later)
+});
+
+const fut2 = Future.of(4); // It's like Promise.resolve(4);
+const fut3 = Future.reject('test'); // It's like Promise.reject('test);
+```
+
+You can see a good introduction to futures [here](https://github.com/jsanchesleao/fantasy-future).
+
+#### Future are cancellable
+
+Sometimes, you need to cancel the async computation before it even happens, Future implements that for you, let's see how:
+
+```ts
+const fut = new Future<number>((resolve, reject) => {
+    const t = setTimeout(() => {
+        console.log('Async computation occurred')
+        resolve(4);
+    }, 15000); // It will happen in 15 secs
+    return () => {
+        clearTimeout(t);
+        return true;
+    }; // This is our cancel function 
+});
+
+const cancel = fut.extract(d => console.log('Number is', d), err => console.error(err));
+cancel(); // Here we cancel the async computation before it can happen. So, you won't see the log 'Async computation occurred'.
+```
+
+#### Run a future
+
+Unless you call `await()`, `awaitOrElse(defaultValue)` or `extract(onSuccess, onFailure)`, the future won't be executed. It is lazy (contrary to promises).
 
 #### Using match
 
@@ -310,48 +354,34 @@ As a Future can be a success or a failure, sometimes it can be useful to do some
 To do so, we use the `match` function:
 
 ```ts
-const fut = new Future(Promise.resolve(4));
+const fut = Future.of(4);
 
 const matchObject = {
-    onSuccess: async (v: number) => v * 4,
-    onFailure: async (e: Error) => {}, 
+    onSuccess: (v: number) => v * 4,
+    onFailure: (e: Error) => {}, 
 };
 
 const returnedValue = fut.match(matchObject);
-
 // The returnedValue value is also a Future 
-```
-
-#### Future with generators
-
-Using `flatMap` is cool, but what if we want to have a flow that is closer to imperative programming that many people know so well? You can use [generators](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Objets_globaux/Generator).
-
-```ts
-const ok = new Future(Promise.resolve('abc123')).run<boolean>(function* () {
-    const id = yield; // Retrieve value from Promise.resolve('abc123')
-    const user = yield findUserById(id);
-    const email = yield pickEmail(user);
-    const ok = yield sendEmail(email, 'Hello from TMonad');
-    return Promise.resolve(ok);
-}());
-
-// ok will be a Future with either true / false or an error 
 ```
 
 #### Future API
 
-- `new Future<T>(promise: Promise<T>): Future<T>` to create a future. 
-- `.flatMap<R>((v: T) => Future<R>): Future<R>` to apply a function and returns a new Future. This allows to chain the computation (see examples).
-- `.flatMapErr<R>((v: Error) => Future<R>): Future<R>` to apply a function and returns a new Future. This allows to chain the computation using the err value.
-- `.run<R>(generator: Generator<Promise<T>, Promise<U>, T>): Future<R>` to use generators instead of flatMap (see examples).
-- `.map<R>((val: T) => R): Future<R>` to apply a function and wrap its result into a Future. Contrary to flatMap, you cannot chain two maps, because you'll end up having `Future<Future<T>>` instead of just an `Future<R>`.
-- `.mapErr<R>((val: E) => Promise<R>): Future<O>` to apply a function and wrap its result into a Future. The function takes the error value.
-- `.extract(): T ` to extract the value of Ok or throw an error 
-- `.getOrElse<R>(defaultValue: R): Promise<T|R>` to extract the value of Ok, or if the Result is an error, return the default value.
-- `.isSuccess(): Promise<boolean>` checks if a Future is a success. 
-- `.isFailure(): Promise<boolean>` checks if a Future is an error.
-- `.match<T, U>({ onSuccess: (o: T) => U, onFailure: (e: Error) => U }): Future<T>` to execute the onSuccess function when Future is a success and the onFailure function when it is a failure.
-- `.flatMatch<T, U>({ onSuccess: (o: T) => Future<U>, onFailure: (e: Error) => Future<U> })): Future<U>` to execute the onSuccess function when Future is a success and the onFailure function when it is a failure. 
+- `new Future<T, E = Error>((resolve, reject) => () => boolean): Future<T, E = Error>` to create a future. You callback should return the `cancel` function (= a function that takes no parameter and returns a boolean). 
+- `Future.of<T, never>(value: T, cancel: () => true)` to create a future that always resolves. The cancel function is optional.
+- `Future.reject<never, E = Error>(value: E, cancel: () => true)` to create a future that always rejects. The cancel function is optional.
+- `Future.fromP<T, E = Error>(value: Promise<T>, errorMapper: (e: Error) => E)` to create a future from a promise. You can map the error when the promise reject into the awaited type for your future. If you are fine with the error, the errorMapper is optional.
+- `.flatMap<U>((v: T) => Future<U, E>): Future<U, E>` to apply a function and returns a new Future. This allows to chain the computation (see examples).
+- `.flatMapErr<U>((v: E) => Future<U, E>): Future<U, E>` to apply a function and returns a new Future. This allows to chain the computation using the err value.
+- `.map<U>((val: T) => U): Future<U, E>` to apply a function and wrap its result into a Future. Contrary to flatMap, you cannot chain two maps, because you'll end up having `Future<Future<T, E2>, E1>` instead of just an `Future<U, E>`.
+- `.mapErr<U>((val: E) => Promise<U>): Future<U, E>` to apply a function and wrap its result into a Future. The function takes the error value.
+- `.extract(onSuccess: (v: T) => void, onFailure: (e: E) => void): () => boolean` to run the future. It takes a success callback and an error callback. The function returns the `cancel` function. 
+- `.awaitOrElse<R>(defaultValue: R): Promise<T|R>` to extract the value, if the future is an error, then the default value is returned. `await` & `awaitOrElse` return a promise so that you can use the `await` keyword on it.
+- `.await(): Promise<T>` to extract the value, if you are sure the future is a success. `await` & `awaitOrElse` return a promise so that you can use the `await` keyword on it.
+- `.match<T, U, E>({ onSuccess: (o: T) => U, onFailure: (e: E) => U }): Future<U, E>` to execute the onSuccess function when Future is a success and the onFailure function when it is a failure.
+- `.flatMatch<T, U, E>({ onSuccess: (o: T) => Future<U, E>, onFailure: (e: E) => Future<U, E> })): Future<U, E>` to execute the onSuccess function when Future is a success and the onFailure function when it is a failure. 
+- `.toResult(): Promise<Result<T, E>>` transform the future to a Result.
+- `.toOption(): Promise<Option<T>>` transform the future to an Option.
 
 
 ## NPM custom commands
