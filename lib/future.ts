@@ -32,6 +32,21 @@ export interface FlatMatch<T, U, E = Error> {
 }
 
 /**
+ * FlatMatchErr
+ */
+export interface FlatMatchErr<T, U, E = Error> {
+    /**
+     * Ok function
+     */
+    onSuccess: (val: T) => Future<T, U>;
+
+    /**
+     * Err function
+     */
+    onFailure: (val: E) => Future<T, U>;
+}
+
+/**
  * Future
  */
 export class Future<T, E = Error> { // tslint:disable-line
@@ -44,7 +59,9 @@ export class Future<T, E = Error> { // tslint:disable-line
      * Constructor
      * @param action - Action to be run
      */
-    constructor(action: (resolve: (d: T) => void, reject: (e: E) => void) => () => boolean)  {
+    constructor(
+        action: (resolve: (d: T) => void, reject: (e: E) => void) => () => boolean
+    )  {
         this._action = action;
     }
 
@@ -163,8 +180,8 @@ export class Future<T, E = Error> { // tslint:disable-line
      * @param f - The function to be called
      * @returns A future
      */
-    mapErr<U>(f: (err: E) => U): Future<U | T, E> {
-        return this.flatMapErr(x => Future.of(f(x)));
+    mapErr<U>(f: (err: E) => U): Future<T, U> {
+        return this.flatMapErr(x => Future.reject(f(x)));
     }
 
     /**
@@ -194,7 +211,7 @@ export class Future<T, E = Error> { // tslint:disable-line
      * @param f - The function to be called
      * @returns A new future
      */
-    flatMapErr<U>(f: (err: E) => Future<U, E>): Future<U|T, E> {
+    flatMapErr<U>(f: (err: E) => Future<T, U>): Future<T, U> {
         return new Future((resolve, reject) =>
             this.extract(
                 (data: T) => resolve(data),
@@ -223,6 +240,19 @@ export class Future<T, E = Error> { // tslint:disable-line
     }
 
     /**
+     * MatchErr
+     * @param matchObject - The match object
+     * @returns the new future
+     */
+    matchErr<U>(matchObject: Match<T, U, E>): Future<T, U> {
+        /* istanbul ignore next */
+        return this.flatMatchErr({
+            onSuccess: x => Future.reject(matchObject.onSuccess(x)),
+            onFailure: e => Future.reject(matchObject.onFailure(e)),
+        });
+    }
+
+    /**
      * FlatMatch
      * @param matchObject - The match object
      * @returns the new future
@@ -233,5 +263,20 @@ export class Future<T, E = Error> { // tslint:disable-line
                 (data: T) => matchObject.onSuccess(data).extract(resolve, reject),
                 (e: E) => matchObject.onFailure(e).extract(resolve, reject)
             ));
+    }
+
+    /**
+     * FlatMatch on error
+     * @param matchObject - The match object
+     * @returns the new future
+     */
+    flatMatchErr<U>(matchObject: FlatMatchErr<T, U, E>): Future<T, U> {
+        return new Future((resolve, reject) =>
+            this.extract(
+                (data: T) => matchObject.onSuccess(data).extract(resolve, reject),
+                (e: E) => matchObject.onFailure(e).extract(resolve, reject)
+            )
+        );
+
     }
 }

@@ -372,14 +372,16 @@ const returnedValue = fut.match(matchObject);
 - `Future.reject<never, E = Error>(value: E, cancel: () => true)` to create a future that always rejects. The cancel function is optional.
 - `Future.fromP<T, E = Error>(value: Promise<T>, errorMapper: (e: Error) => E)` to create a future from a promise. You can map the error when the promise reject into the awaited type for your future. If you are fine with the error, the errorMapper is optional.
 - `.flatMap<U>((v: T) => Future<U, E>): Future<U, E>` to apply a function and returns a new Future. This allows to chain the computation (see examples).
-- `.flatMapErr<U>((v: E) => Future<U, E>): Future<U, E>` to apply a function and returns a new Future. This allows to chain the computation using the err value.
+- `.flatMapErr<U>((v: E) => Future<T, U>): Future<T, U>` to apply a function and returns a new Future. This allows to chain the computation using the err value and potentially modify the new future error type.
 - `.map<U>((val: T) => U): Future<U, E>` to apply a function and wrap its result into a Future. Contrary to flatMap, you cannot chain two maps, because you'll end up having `Future<Future<T, E2>, E1>` instead of just an `Future<U, E>`.
-- `.mapErr<U>((val: E) => Promise<U>): Future<U, E>` to apply a function and wrap its result into a Future. The function takes the error value.
+- `.mapErr<U>((val: E) => Promise<U>): Future<T, U>` to apply a function and wrap its result into a Future. The function takes the error value.
 - `.extract(onSuccess: (v: T) => void, onFailure: (e: E) => void): () => boolean` to run the future. It takes a success callback and an error callback. The function returns the `cancel` function. 
 - `.awaitOrElse<R>(defaultValue: R): Promise<T|R>` to extract the value, if the future is an error, then the default value is returned. `await` & `awaitOrElse` return a promise so that you can use the `await` keyword on it.
 - `.await(): Promise<T>` to extract the value, if you are sure the future is a success. `await` & `awaitOrElse` return a promise so that you can use the `await` keyword on it.
 - `.match<T, U, E>({ onSuccess: (o: T) => U, onFailure: (e: E) => U }): Future<U, E>` to execute the onSuccess function when Future is a success and the onFailure function when it is a failure.
+- `.matchErr<T, U, E>({ onSuccess: (o: T) => U, onFailure: (e: E) => U }): Future<T, U>` to execute the onSuccess function when Future is a success and the onFailure function when it is a failure. This returns a new future with the error type changed by the type of the return value of `onSuccess` or `onFailure`.
 - `.flatMatch<T, U, E>({ onSuccess: (o: T) => Future<U, E>, onFailure: (e: E) => Future<U, E> })): Future<U, E>` to execute the onSuccess function when Future is a success and the onFailure function when it is a failure. 
+- `.flatMatchErr<T, U, E>({ onSuccess: (o: T) => Future<T, U>, onFailure: (e: E) => Future<T, U> })): Future<T, U>` to execute the onSuccess function when Future is a success and the onFailure function when it is a failure. Returns a Future with type `U` for the error type. 
 - `.toResult(): Promise<Result<T, E>>` transform the future to a Result.
 - `.toOption(): Promise<Option<T>>` transform the future to an Option.
 

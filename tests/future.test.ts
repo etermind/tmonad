@@ -60,7 +60,13 @@ describe('Future#Map', () => {
     it('should apply the function on the error and return a new Future (2)', async () => {
         const res = Future.reject(new Error('test'));
         const res2 = res.mapErr(() => 8);
-        (await res2.await()).should.equal(8);
+        try {
+            await res2.await();
+            true.should.be.false; // Should never be executed
+        }
+        catch (err: any) {
+            err.should.equal(8);
+        }
     });
 });
 
@@ -82,8 +88,8 @@ describe('Future#Flatmap', () => {
 
     it('should apply the function on the error and return a new Future', async () => {
         const res = Future.reject(new Error('test'))
-            .flatMapErr(() => Future.of(4));
-        (await res.awaitOrElse(10)).should.equal(4);
+            .flatMapErr(() => Future.reject(4));
+        (await res.awaitOrElse(10)).should.equal(10);
     });
 
     it('should apply the function on the error and return a new Result', async () => {
@@ -94,7 +100,7 @@ describe('Future#Flatmap', () => {
 
     it('should apply the function on the error and return the same future', async () => {
         const res = Future.of('test')
-            .flatMapErr(() => Future.of(4));
+            .flatMapErr(() => Future.reject(4));
         (await res.awaitOrElse(10)).should.equal('test');
     });
 
@@ -218,6 +224,38 @@ describe('Future#FlatMatch', () => {
         const res = Future.reject('nada');
         const res2 = res.flatMatch(match);
         (await res2.awaitOrElse(10)).should.equal(10);
+    });
+
+    it('should call the first function on flatMatchErr' +
+        'when it is an ok and return the Result', async () => {
+        const match = {
+            onSuccess: (o: any) => Future.reject('ok'),
+            onFailure: (e: any) => Future.reject('err'),
+        };
+        const res = Future.of(2);
+        try {
+            await res.flatMatchErr(match).await();
+            true.should.be.false;
+        }
+        catch (err: any) {
+            err.should.equal('ok');
+        }
+    });
+
+    it('should call the second function on flatMatchErr ' +
+        'when it is an ok and return the Result', async () => {
+        const match = {
+            onSuccess: (o: any) => Future.reject('ok'),
+            onFailure: (e: any) => Future.reject('err'),
+        };
+        const res = Future.reject(2);
+        try {
+            await res.flatMatchErr(match).await();
+            true.should.be.false;
+        }
+        catch (err: any) {
+            err.should.equal('err');
+        }
     });
 });
 
