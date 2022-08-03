@@ -311,3 +311,29 @@ describe('Future#Cancel', () => {
         c();
     });
 });
+
+/**
+ * Seq
+ */
+describe('Future#seq', () => {
+    it('should get a list of results when everything succeed', async () => {
+        const futures = [Future.of(true), Future.of(false), Future.of(true)];
+        const res = await Future.seq(futures).await();
+
+        res.should.have.lengthOf(3);
+        res[0].should.be.true;
+        res[1].should.be.false;
+        res[2].should.be.true;
+    });
+
+    it('should reject when one of the futures rejects', async () => {
+        const futures = [Future.of(true), Future.reject(new Error('rejection')), Future.of(true)];
+        try {
+            const res = await Future.seq(futures).await();
+            true.should.be.false;
+        }
+        catch(err: any) {
+            err.message.should.equal('rejection');
+        }
+    });
+});

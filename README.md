@@ -371,6 +371,8 @@ const returnedValue = fut.match(matchObject);
 - `Future.of<T, never>(value: T, cancel: () => true)` to create a future that always resolves. The cancel function is optional.
 - `Future.reject<never, E = Error>(value: E, cancel: () => true)` to create a future that always rejects. The cancel function is optional.
 - `Future.fromP<T, E = Error>(value: Promise<T>, errorMapper: (e: Error) => E)` to create a future from a promise. You can map the error when the promise reject into the awaited type for your future. If you are fine with the error, the errorMapper is optional.
+- `Future.seq<T, E = Error>(futures: Future<T, E>[]): Future<T[], E>`: given a list of futures, apply them sequentially and return a list of results if all futures succeed, otherwiwse reject and cancel the ones not already called. 
+
 - `.flatMap<U>((v: T) => Future<U, E>): Future<U, E>` to apply a function and returns a new Future. This allows to chain the computation (see examples).
 - `.flatMapErr<U>((v: E) => Future<T, U>): Future<T, U>` to apply a function and returns a new Future. This allows to chain the computation using the err value and potentially modify the new future error type.
 - `.map<U>((val: T) => U): Future<U, E>` to apply a function and wrap its result into a Future. Contrary to flatMap, you cannot chain two maps, because you'll end up having `Future<Future<T, E2>, E1>` instead of just an `Future<U, E>`.

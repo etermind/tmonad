@@ -108,6 +108,33 @@ export class Future<T, E = Error> { // tslint:disable-line
     }
 
     /**
+     * Sequentially apply a list of futures
+     * If one fails, the other are cancelled and a rejection is thrown
+     * If everything succeed, then you'll get a list of results
+     * @param arr - The array of futures
+     * @returns a future containing the list of results or a rejection
+     */
+    static seq<T, E = Error>(
+        arr: Future<T, E>[]
+    ): Future<T[], E> {
+        return Future.fromP((async () => {
+            const results: T[] = [];
+            for(const [i, f] of arr.entries()) {
+                try {
+                    const r = await f.await();
+                    results.push(r);
+                }
+                catch(err: any) {
+                    // Cancel everything else
+                    arr.slice(i).map((x) => x.extract(() => {}, () => {})());
+                    throw err;
+                }
+            }
+            return results;
+        })());
+    }
+
+    /**
      * Run the future
      * @param success - The success function
      * @param error - The error function
