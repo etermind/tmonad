@@ -316,6 +316,18 @@ describe('Future#Cancel', () => {
  * Seq
  */
 describe('Future#seq', () => {
+    const sleep = (ms: number) => new Future((resolve) => {
+        const x = setTimeout(() => {
+            resolve(true);
+        }, ms);
+        return () => { clearTimeout(x); return true; };
+    });
+
+    const date = new Future((resolve) => {
+        resolve(new Date());
+        return () => true;
+    });
+
     it('should get a list of results when everything succeed', async () => {
         const futures = [Future.of(true), Future.of(false), Future.of(true)];
         const res = await Future.seq(futures).await();
@@ -335,5 +347,18 @@ describe('Future#seq', () => {
         catch(err: any) {
             err.message.should.equal('rejection');
         }
+    });
+
+    it('should apply the future sequentially', async () => {
+        const futures = [
+            date, sleep(2000),
+            date, sleep(2000),
+            date
+        ];
+        const res = await Future.seq(futures).await();
+        const elasped = (res[2] as Date).getTime() - (res[0] as Date).getTime();
+        elasped.should.be.within(1750, 2300);
+        const elasped2 = (res[4] as Date).getTime() - (res[2] as Date).getTime();
+        elasped2.should.be.within(1750, 2300);
     });
 });

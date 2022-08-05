@@ -121,12 +121,11 @@ export class Future<T, E = Error> { // tslint:disable-line
             const results: T[] = [];
             for(const [i, f] of arr.entries()) {
                 try {
-                    const r = await f.await();
-                    results.push(r);
+                    const x = await f.await();
+                    results.push(x);
                 }
                 catch(err: any) {
-                    // Cancel everything else
-                    arr.slice(i).map((x) => x.extract(() => {}, () => {})());
+                    arr.slice(i).map(x => x.extract(() => {}, () => {})());
                     throw err;
                 }
             }
@@ -149,7 +148,7 @@ export class Future<T, E = Error> { // tslint:disable-line
      * @returns the promise
      */
     await(): Promise<T> {
-        return new Promise((resolve, reject) => this.extract(resolve, reject));
+        return new Promise(this.extract.bind(this));
     }
 
     /**
