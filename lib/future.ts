@@ -1,6 +1,11 @@
 import { None, Some, Option } from './option';
 import { Err, Ok, Result } from './result';
 
+export type PromiseFactory<T> = () => Promise<T>;
+
+const isPromise = <T>(x: any): x is Promise<T> =>
+    x instanceof Promise || x != null && typeof (x as any).then === 'function';
+
 /**
  * Match
  */
@@ -98,11 +103,16 @@ export class Future<T, E = Error> { // tslint:disable-line
      * @returns the Future
      */
     static fromP<T, E = Error>(
-        x: Promise<T>,
+        x: Promise<T>|PromiseFactory<T>,
         m: (e: Error) => E = e => e as any
     ): Future<T, E> {
         return new Future((resolve, reject) => {
-            x.then(d => resolve(d)).catch((e: Error) => reject(m(e)));
+            if (isPromise(x)) {
+                x.then(resolve, (e: Error) => reject(m(e)));
+            }
+            else {
+                x().then(resolve, (e: Error) => reject(m(e)));
+            }
             return () => true;
         });
     }
@@ -130,7 +140,7 @@ export class Future<T, E = Error> { // tslint:disable-line
                 }
             }
             return results;
-        })());
+        }));
     }
 
     /**
