@@ -316,7 +316,7 @@ describe('Future#Cancel', () => {
  * Seq
  */
 describe('Future#seq', () => {
-    const sleep = (ms: number) => new Future((resolve) => {
+    const sleep = (ms: number) => new Future<boolean, never>((resolve) => {
         const x = setTimeout(() => {
             resolve(true);
         }, ms);
@@ -327,6 +327,14 @@ describe('Future#seq', () => {
         resolve(new Date());
         return () => true;
     });
+
+    const sleepP = (ms: number) => () => new Promise((resolve) => {
+        setTimeout(() => {
+            resolve(true);
+        }, ms);
+    });
+
+    const dateP = () => new Promise((resolve) => resolve(new Date()));
 
     it('should get a list of results when everything succeed', async () => {
         const futures = [Future.of(true), Future.of(false), Future.of(true)];
@@ -349,11 +357,37 @@ describe('Future#seq', () => {
         }
     });
 
-    it('should apply the future sequentially', async () => {
+    it('should apply the futures sequentially (1)', async () => {
         const futures = [
             date, sleep(2000),
             date, sleep(2000),
             date
+        ];
+        const res = await Future.seq(futures).await();
+        const elasped = (res[2] as Date).getTime() - (res[0] as Date).getTime();
+        elasped.should.be.within(1750, 2300);
+        const elasped2 = (res[4] as Date).getTime() - (res[2] as Date).getTime();
+        elasped2.should.be.within(1750, 2300);
+    });
+
+    it('should apply the future sequentially (2)', async () => {
+        const futures = [
+            date, Future.of(true).flatMap(() => sleep(2000)),
+            date, Future.of(true).flatMap(() => sleep(2000)),
+            date
+        ];
+        const res = await Future.seq(futures).await();
+        const elasped = (res[2] as Date).getTime() - (res[0] as Date).getTime();
+        elasped.should.be.within(1750, 2300);
+        const elasped2 = (res[4] as Date).getTime() - (res[2] as Date).getTime();
+        elasped2.should.be.within(1750, 2300);
+    });
+
+    it('should apply the future sequentially when using fromP', async () => {
+        const futures = [
+            Future.fromP(dateP), Future.fromP(sleepP(2000)),
+            Future.fromP(dateP), Future.fromP(sleepP(2000)),
+            Future.fromP(dateP)
         ];
         const res = await Future.seq(futures).await();
         const elasped = (res[2] as Date).getTime() - (res[0] as Date).getTime();
