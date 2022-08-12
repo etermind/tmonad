@@ -370,18 +370,6 @@ describe('Future#seq', () => {
         elasped2.should.be.within(1750, 2300);
     });
 
-    it('should apply the future sequentially (2)', async () => {
-        const futures = [
-            date, Future.of(true).flatMap(() => sleep(2000)),
-            date, Future.of(true).flatMap(() => sleep(2000)),
-            date
-        ];
-        const res = await Future.seq(futures).await();
-        const elasped = (res[2] as Date).getTime() - (res[0] as Date).getTime();
-        elasped.should.be.within(1750, 2300);
-        const elasped2 = (res[4] as Date).getTime() - (res[2] as Date).getTime();
-        elasped2.should.be.within(1750, 2300);
-    });
 
     it('should apply the future sequentially when using fromP', async () => {
         const futures = [

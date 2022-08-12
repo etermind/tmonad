@@ -323,6 +323,121 @@ const fut3 = Future.reject('test'); // It's like Promise.reject('test);
 
 You can see a good introduction to futures [here](https://github.com/jsanchesleao/fantasy-future).
 
+#### Future are lazy
+
+Contrary to `Promise`s that are executed as soon as they are instantiated, `Future`s are lazy, so if you do not call `extract`,`await` or any other methods that execute the future, it will not be computed.
+
+It is important to know that, because when you create a `Future` from a `Promise` using `fromP`, the future is therefore not lazy anymore. If you want to keep the lazyness, you need to use `fromP` with a `Promise` factory like this:
+
+```ts
+const myFuture = Future.fromP(
+    () => new Promise((resolve) => {
+        setTimeout(() => resolve(true), 2000)
+    })
+);
+```
+
+`myFuture` is the example below is still lazy, since the promise will be instantiated if and only if `extract`, `await`, ... is called.
+
+Look at that example that runs `Future`s in sequence:
+
+```ts
+import { Future } from '.';
+
+const date1 = new Future((resolve) => { 
+    resolve(new Date());
+    return () => true;
+}); 
+const date2 = new Future((resolve) => { 
+    resolve(new Date());
+    return () => true;
+}); 
+const date3 = new Future((resolve) => { 
+    resolve(new Date());
+    return () => true;
+}); 
+const timeout1 = new Future((resolve) => {
+    const x = setTimeout(() => resolve(true), 2000)
+    return () => {
+        if (x) {
+            clearTimeout(x);
+        }
+        return true;
+    }
+});
+const timeout2 = new Future((resolve) => {
+    const x = setTimeout(() => resolve(true), 2000)
+    return () => {
+        if (x) {
+            clearTimeout(x);
+        }
+        return true;
+    }
+});
+const seqF = [date1, timeout1, date2, timeout2, date3];
+
+async function run() {
+    const results = await Future.seq(seqF).await();
+    // [2022-08-12T07:56:13.972Z, true, 2022-08-12T07:56:15.977Z, true, 2022-08-12T07:56:17.980Z]
+    // You see that each timestamp has a difference of around 2 seconds. 
+    // So futures are indeed computed sequentially
+    console.log(results);
+}
+
+run().then()
+```
+
+Now let's try the same thing with `Promise`s and `Future.fromP`:
+
+```ts
+import { Future } from '.';
+
+const date1 = new Promise((resolve) => resolve(new Date())); 
+const date2 = new Promise((resolve) => resolve(new Date())); 
+const date3 = new Promise((resolve) => resolve(new Date())); 
+const timeout1 = new Promise((resolve) => setTimeout(() => resolve(true), 2000));
+const timeout2 = new Promise((resolve) => setTimeout(() => resolve(true), 2000));
+const seqF = [
+    Future.fromP(date1), Future.fromP(timeout1),
+    Future.fromP(date2), Future.fromP(timeout2),
+    Future.fromP(date3)
+];
+
+async function run() {
+    const results = await Future.seq(seqF).await();
+    // [2022-08-12T08:07:04.981Z, true, 2022-08-12T08:07:04.981Z, true, 2022-08-12T08:07:04.981Z] 
+    // You see that each timestamp is the same. 
+    // So futures are not computed sequentially.
+    console.log(results);
+}
+
+run().then()
+```
+
+If you want to use `Promise`s with `Future.seq`, you need to use a `Promise` factory:
+
+
+```ts
+import { Future } from '.';
+
+const date = () => new Promise((resolve) => resolve(new Date())); 
+const timeout = () => new Promise((resolve) => setTimeout(() => resolve(true), 2000));
+const seqF = [
+    Future.fromP(date), Future.fromP(timeout),
+    Future.fromP(date), Future.fromP(timeout),
+    Future.fromP(date)
+];
+
+async function run() {
+    const results = await Future.seq(seqF).await();
+    // [2022-08-12T08:09:28.319Z, true, 2022-08-12T08:09:30.324Z, true, 2022-08-12T08:09:32.326Z]
+    // With a promise factory, futures are computed sequentially as expected 
+    console.log(results);
+}
+
+run().then()
+```
+
 #### Future are cancellable
 
 Sometimes, you need to cancel the async computation before it even happens, Future implements that for you, let's see how:
@@ -370,7 +485,7 @@ const returnedValue = fut.match(matchObject);
 - `new Future<T, E = Error>((resolve, reject) => () => boolean): Future<T, E = Error>` to create a future. You callback should return the `cancel` function (= a function that takes no parameter and returns a boolean). 
 - `Future.of<T, never>(value: T, cancel: () => true)` to create a future that always resolves. The cancel function is optional.
 - `Future.reject<never, E = Error>(value: E, cancel: () => true)` to create a future that always rejects. The cancel function is optional.
-- `Future.fromP<T, E = Error>(value: Promise<T>, errorMapper: (e: Error) => E)` to create a future from a promise. You can map the error when the promise reject into the awaited type for your future. If you are fine with the error, the errorMapper is optional.
+- `Future.fromP<T, E = Error>(value: Promise<T>| () => Promise<T>, errorMapper: (e: Error) => E)` to create a future from a promise. Be sure to have read the `Futures are lazy` section. Also, this method allows to map the Error of a rejected promise into the Error type of the future. If you are fine with the error, the errorMapper is optional.
 - `Future.seq<T, E = Error>(futures: Future<T, E>[]): Future<T[], E>`: given a list of futures, apply them sequentially and return a list of results if all futures succeed, otherwiwse reject and cancel the ones not already called. 
 
 - `.flatMap<U>((v: T) => Future<U, E>): Future<U, E>` to apply a function and returns a new Future. This allows to chain the computation (see examples).
