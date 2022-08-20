@@ -492,6 +492,7 @@ const returnedValue = fut.match(matchObject);
 - `.flatMapErr<U>((v: E) => Future<T, U>): Future<T, U>` to apply a function and returns a new Future. This allows to chain the computation using the err value and potentially modify the new future error type.
 - `.map<U>((val: T) => U): Future<U, E>` to apply a function and wrap its result into a Future. Contrary to flatMap, you cannot chain two maps, because you'll end up having `Future<Future<T, E2>, E1>` instead of just an `Future<U, E>`.
 - `.mapErr<U>((val: E) => Promise<U>): Future<T, U>` to apply a function and wrap its result into a Future. The function takes the error value.
+- `.swap(): Future<E, T>` to swap the success value with the error value.
 - `.extract(onSuccess: (v: T) => void, onFailure: (e: E) => void): () => boolean` to run the future. It takes a success callback and an error callback. The function returns the `cancel` function. 
 - `.awaitOrElse<R>(defaultValue: R): Promise<T|R>` to extract the value, if the future is an error, then the default value is returned. `await` & `awaitOrElse` return a promise so that you can use the `await` keyword on it.
 - `.await(): Promise<T>` to extract the value, if you are sure the future is a success. `await` & `awaitOrElse` return a promise so that you can use the `await` keyword on it.

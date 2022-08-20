@@ -384,3 +384,25 @@ describe('Future#seq', () => {
         elasped2.should.be.within(1750, 2300);
     });
 });
+
+/**
+ * Future#swap
+ */
+describe('Future#swap', () => {
+    it('should swap the values and extract the old error', async () => {
+        const fut = Future.fromP(async () => {
+            throw new Error('An error');
+        });
+        const e = await fut.swap().await();
+        e.message.should.equal('An error');
+    });
+
+    it('should swap the values and extract the old success', async () => {
+        const fut = Future.fromP(async () => {
+            return 2;
+        });
+        fut.swap().extract(() => {}, (d) => {
+            d.should.equal(2);
+        });
+    });
+});
