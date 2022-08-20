@@ -221,6 +221,16 @@ export class Future<T, E = Error> { // tslint:disable-line
     }
 
     /**
+     * Swap the value of the success with the value of the error
+     * @returns a new future with swapped values
+     */
+    swap(): Future<E, T> {
+        return new Future((resolve, reject) => {
+            return this.extract(reject, resolve);
+        });
+    }
+
+    /**
      * Flatmap
      *
      * @param f - The function to be called
