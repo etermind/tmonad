@@ -323,7 +323,7 @@ describe('Future#seq', () => {
         return () => { clearTimeout(x); return true; };
     });
 
-    const date = new Future((resolve) => {
+    const date: Future<Date> = new Future((resolve) => {
         resolve(new Date());
         return () => true;
     });
@@ -337,8 +337,9 @@ describe('Future#seq', () => {
     const dateP = () => new Promise((resolve) => resolve(new Date()));
 
     it('should get a list of results when everything succeed', async () => {
-        const futures = [Future.of(true), Future.of(false), Future.of(true)];
-        const res = await Future.seq(futures).await();
+        const res = await Future.seq(
+            [Future.of(true), Future.of(false), Future.of(true)]
+        ).await();
 
         res.should.have.lengthOf(3);
         res[0].should.be.true;
@@ -347,9 +348,10 @@ describe('Future#seq', () => {
     });
 
     it('should reject when one of the futures rejects', async () => {
-        const futures = [Future.of(true), Future.reject(new Error('rejection')), Future.of(true)];
         try {
-            const res = await Future.seq(futures).await();
+            const res = await Future.seq(
+                [Future.of(true), Future.reject(new Error('rejection')), Future.of(true)]
+            ).await();
             true.should.be.false;
         }
         catch(err: any) {
@@ -358,12 +360,13 @@ describe('Future#seq', () => {
     });
 
     it('should apply the futures sequentially (1)', async () => {
-        const futures = [
-            date, sleep(2000),
-            date, sleep(2000),
-            date
-        ];
-        const res = await Future.seq(futures).await();
+        const res = await Future.seq(
+            [
+                date, sleep(2000),
+                date, sleep(2000),
+                date
+            ]
+        ).await();
         const elasped = (res[2] as Date).getTime() - (res[0] as Date).getTime();
         elasped.should.be.within(1750, 2300);
         const elasped2 = (res[4] as Date).getTime() - (res[2] as Date).getTime();
@@ -372,16 +375,24 @@ describe('Future#seq', () => {
 
 
     it('should apply the future sequentially when using fromP', async () => {
-        const futures = [
-            Future.fromP(dateP), Future.fromP(sleepP(2000)),
-            Future.fromP(dateP), Future.fromP(sleepP(2000)),
-            Future.fromP(dateP)
-        ];
-        const res = await Future.seq(futures).await();
+        const res = await Future.seq(
+            [
+                Future.fromP(dateP), Future.fromP(sleepP(2000)),
+                Future.fromP(dateP), Future.fromP(sleepP(2000)),
+                Future.fromP(dateP)
+            ]
+        ).await();
         const elasped = (res[2] as Date).getTime() - (res[0] as Date).getTime();
         elasped.should.be.within(1750, 2300);
         const elasped2 = (res[4] as Date).getTime() - (res[2] as Date).getTime();
         elasped2.should.be.within(1750, 2300);
+    });
+
+    it('should work with an array of futures and not a tuple', async () => {
+        const futs = [Future.of(true), Future.of(1)];
+        const res = await Future.seq(futs).await();
+        res[0].should.be.true;
+        res[1].should.equal(1);
     });
 });
 

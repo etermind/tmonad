@@ -124,11 +124,11 @@ export class Future<T, E = Error> { // tslint:disable-line
      * @param arr - The array of futures
      * @returns a future containing the list of results or a rejection
      */
-    static seq<T, E = Error>(
-        arr: Future<T, E>[]
-    ): Future<T[], E> {
-        return Future.fromP((async () => {
-            const results: T[] = [];
+    static seq<T extends Future<any, E>[]|[], E = Error>(
+        arr: T
+    ): Future<{ [P in keyof T]: T[P] extends Future<infer U, E> ? U : never }, E> {
+        return Future.fromP(async () => {
+            const results: any = [];
             for(const [i, f] of arr.entries()) {
                 try {
                     const x = await f.await();
@@ -140,7 +140,7 @@ export class Future<T, E = Error> { // tslint:disable-line
                 }
             }
             return results;
-        }));
+        });
     }
 
     /**
@@ -326,3 +326,5 @@ export class Future<T, E = Error> { // tslint:disable-line
 
     }
 }
+
+
