@@ -126,7 +126,8 @@ export class Future<T, E = Error> { // tslint:disable-line
      */
     static seq<X = Error, M extends Future<any, any>[]|[] = Future<any, X>[]>(
         arr: M
-    ): Future<{ [P in keyof M]: M[P] extends Future<infer U, any> ? U : never }, M[number] extends Future<any, infer U> ? U : never> {
+    ): Future<{ [P in keyof M]: M[P] extends Future<infer U, any> ? U : never },
+        M[number] extends Future<any, infer U> ? U : never> {
         return Future.fromP(async () => {
             const results: any = [];
             for(const [i, f] of arr.entries()) {

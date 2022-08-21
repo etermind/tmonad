@@ -155,7 +155,7 @@ module.exports = {
             {
                 "selector": "typeParameter",
                 "format": [ "PascalCase" ],
-                "prefix": [ "T", "U", "V", "E", "X", "R" ]
+                "prefix": [ "T", "U", "V", "E", "X", "R", "M" ]
             },
             {
                 "selector": "enum",
