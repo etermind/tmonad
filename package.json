@@ -1,6 +1,6 @@
 {
     "name": "@etermind/tmonad",
-    "version": "3.5.1",
+    "version": "4.0.0",
     "description": "A set of tools to use pure functional programming with generators in TypeScript",
     "keywords": [
         "functional",
@@ -12,7 +12,8 @@
     "license": "MIT",
     "main": "dist/lib/index.js",
     "module": "dist/lib/index.js",
-    "types": "dist/types/index.d.ts",
+    "types": "dist/lib/index.d.ts",
+    "type": "module",
     "engines": {
         "node": ">=16"
     },
@@ -22,9 +23,9 @@
     },
     "scripts": {
         "prebuild": "npx rimraf dist",
-        "build": "npx tsc --module commonjs",
-        "build:watch": "npx tsc -w --module commonjs",
-        "dev:watch": "npx tsc-watch --module commonjs --onSuccess 'npm run dev'",
+        "build": "npx tsc",
+        "build:watch": "npx tsc -w",
+        "dev:watch": "npx tsc-watch --onSuccess 'npm run dev'",
         "dev": "node --harmony ./dist/lib/index.js",
         "test": "npx jest --coverage",
         "test:watch": "npx jest --coverage --watch",
@@ -56,6 +57,15 @@
         "typescript": "^4.x"
     },
     "jest": {
+        "extensionsToTreatAsEsm": [".ts"],
+        "globals": {
+            "ts-jest": {
+                "useESM": true
+            }
+        },
+        "moduleNameMapper": {
+            "^(\\.{1,2}/.*)\\.js$": "$1"
+        },
         "transform": {
             ".(ts|tsx)": "ts-jest"
         },
