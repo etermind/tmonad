@@ -1,5 +1,5 @@
 import * as Chai from 'chai';
-import { None, Some, Option } from '../lib';
+import { None, Some, Option } from '../lib/index.js';
 
 const should = Chai.should();
 

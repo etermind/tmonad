@@ -1,5 +1,5 @@
 import * as Chai from 'chai';
-import { Future } from '../lib';
+import { Future } from '../lib/index.js';
 
 const should = Chai.should();
 

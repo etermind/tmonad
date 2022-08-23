@@ -1,5 +1,5 @@
-import { None, Some, Option } from './option';
-import { Err, Ok, Result } from './result';
+import { None, Some, Option } from './option.js';
+import { Err, Ok, Result } from './result.js';
 
 export type PromiseFactory<T> = () => Promise<T>;
 
