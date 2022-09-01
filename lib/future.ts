@@ -145,6 +145,103 @@ export class Future<T, E = Error> { // tslint:disable-line
     }
 
     /**
+     * Apply a list of futures in parallel
+     * If one fails, the other are cancelled and a rejection is thrown
+     * If everything succeed, then you'll get a list of results
+     * @param arr - The array of futures
+     * @returns a future containing the list of results or a rejection
+     */
+    static all<X = Error, M extends Future<any, any>[]|[] = Future<any, X>[]>(
+        arr: M
+    ): Future<{ [P in keyof M]: M[P] extends Future<infer U, any> ? U : never },
+        M[number] extends Future<any, infer U> ? U : never> {
+        const results: any[] = [];
+        let resolvedCount = 0;
+        return new Future<any, any>((resolve, reject) => {
+            if (arr.length === 0) {
+                resolve([]);
+                return () => true;
+            }
+            arr.forEach((fut, i) => {
+                fut.extract((d) => {
+                    results[i] = d;
+                    resolvedCount += 1;
+                    if (resolvedCount === arr.length) {
+                        resolve(results);
+                    }
+                }, (err) => {
+                    reject(err);
+                });
+            });
+            return () => true;
+        });
+    }
+
+    /**
+     * Sequentially apply a list of futures
+     * Contrary to seq, if one fails,
+     * the returned array contained the error + the other results
+     * @param arr - The array of futures
+     * @returns a future containing the results and/or the rejection
+     */
+    static seqSafe<M extends Future<any, any>[]|[] = Future<any, any>[]>(
+        arr: M
+    ): Future<
+        { [P in keyof M]: M[P] extends Future<infer U, infer W> ? U|W : never }
+        > {
+        return Future.fromP(async () => {
+            const results: any = [];
+            for(const [, f] of arr.entries()) {
+                try {
+                    const x = await f.await();
+                    results.push(x);
+                }
+                catch(err: any) {
+                    results.push(err);
+                }
+            }
+            return results;
+        }, (e) => e as any);
+    }
+
+    /**
+     * Apply a list of futures in parallel
+     * Contrary to all, if one fails,
+     * the returned array contained the error + the other results
+     * @param arr - The array of futures
+     * @returns a future containing the list of results and rejections
+     */
+    static allSafe<M extends Future<any, any>[]|[] = Future<any, any>[]>(
+        arr: M
+    ): Future<{ [P in keyof M]: M[P] extends Future<infer U, any> ? U : never },
+        M[number] extends Future<any, infer U> ? U : never> {
+        const results: any[] = [];
+        let resolvedCount = 0;
+        return new Future<any, any>((resolve) => {
+            if (arr.length === 0) {
+                resolve([]);
+                return () => true;
+            }
+            arr.forEach((fut, i) => {
+                fut.extract((d) => {
+                    results[i] = d;
+                    resolvedCount += 1;
+                    if (resolvedCount === arr.length) {
+                        resolve(results);
+                    }
+                }, (err) => {
+                    results[i] = err;
+                    resolvedCount += 1;
+                    if (resolvedCount === arr.length) {
+                        resolve(results);
+                    }
+                });
+            });
+            return () => true;
+        });
+    }
+
+    /**
      * Run the future
      * @param success - The success function
      * @param error - The error function
