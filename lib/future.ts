@@ -149,25 +149,65 @@ export class Future<T, E = Error> { // tslint:disable-line
      * If one fails, the other are cancelled and a rejection is thrown
      * If everything succeed, then you'll get a list of results
      * @param arr - The array of futures
+     * @param limit - Limit the execution up to n futures in parallel. 0 means no limit
      * @returns a future containing the list of results or a rejection
      */
     static all<X = Error, M extends Future<any, any>[]|[] = Future<any, X>[]>(
-        arr: M
+        arr: M,
+        limit: number = 0
     ): Future<{ [P in keyof M]: M[P] extends Future<infer U, any> ? U : never },
         M[number] extends Future<any, infer U> ? U : never> {
-        const results: any[] = [];
-        let resolvedCount = 0;
-        return new Future<any, any>((resolve, reject) => {
-            if (arr.length === 0) {
-                resolve([]);
-                return () => true;
-            }
+        let results: any[] = [];
+        if (arr.length === 0) {
+            return Future.of([] as any);
+        }
+        if (limit > 0) {
+            const iterable: any = new Object();
+            iterable[Symbol.asyncIterator] = async function* () {
+                let data = [];
+                for(const [i, fut] of arr.entries()) {
+                    data.push(fut);
+                    if ((i+1) % limit === 0) {
+                        try {
+                            yield {
+                                isError: false, results: await Future.all(data, 0).await(),
+                            };
+                        }
+                        catch (error: any) {
+                            yield { isError: true, error };
+                        }
+                        data = [];
+                    }
+                }
+                try {
+                    yield {
+                        isError: false, results: await Future.all(data, 0).await(),
+                    };
+                }
+                catch (error: any) {
+                    yield { isError: true, error };
+                }
+            };
+
+            return Future.fromP(async () => {
+                for await (const res of iterable) {
+                    if (res.isError) {
+                        throw res.error;
+                    }
+                    results = results.concat(res.results);
+                }
+                return results as any;
+            }, e => e as any);
+        }
+
+        return new Future((resolve, reject) => {
+            let resolvedCount = 0;
             arr.forEach((fut, i) => {
                 fut.extract((d) => {
                     results[i] = d;
                     resolvedCount += 1;
                     if (resolvedCount === arr.length) {
-                        resolve(results);
+                        resolve(results as any);
                     }
                 }, (err) => {
                     reject(err);
@@ -209,32 +249,54 @@ export class Future<T, E = Error> { // tslint:disable-line
      * Contrary to all, if one fails,
      * the returned array contained the error + the other results
      * @param arr - The array of futures
+     * @param limit - Limit the execution up to n futures in parallel. 0 means no limit
      * @returns a future containing the list of results and rejections
      */
     static allSafe<M extends Future<any, any>[]|[] = Future<any, any>[]>(
-        arr: M
-    ): Future<
-        { [P in keyof M]: M[P] extends Future<infer U, infer W> ? U|W : never }
-        > {
-        const results: any[] = [];
-        let resolvedCount = 0;
-        return new Future<any, any>((resolve) => {
-            if (arr.length === 0) {
-                resolve([]);
-                return () => true;
-            }
+        arr: M,
+        limit: number = 0
+    ): Future<{ [P in keyof M]: M[P] extends Future<infer U, infer W> ? U|W : never }> {
+
+        let results: any[] = [];
+        if (arr.length === 0) {
+            return Future.of([] as any);
+        }
+        if (limit > 0) {
+            const iterable: any = new Object();
+            iterable[Symbol.asyncIterator] = async function* () {
+                let data = [];
+                for(const [i, fut] of arr.entries()) {
+                    data.push(fut);
+                    if ((i+1) % limit === 0) {
+                        yield await Future.allSafe(data, 0).await();
+                        data = [];
+                    }
+                }
+                yield await Future.allSafe(data, 0).await();
+            };
+
+            return Future.fromP(async () => {
+                for await (const res of iterable) {
+                    results = results.concat(res);
+                }
+                return results as any;
+            }, e => e as any);
+        }
+
+        return new Future((resolve) => {
+            let resolvedCount = 0;
             arr.forEach((fut, i) => {
                 fut.extract((d) => {
                     results[i] = d;
                     resolvedCount += 1;
                     if (resolvedCount === arr.length) {
-                        resolve(results);
+                        resolve(results as any);
                     }
                 }, (err) => {
                     results[i] = err;
                     resolvedCount += 1;
                     if (resolvedCount === arr.length) {
-                        resolve(results);
+                        resolve(results as any);
                     }
                 });
             });

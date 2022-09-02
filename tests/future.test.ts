@@ -527,6 +527,38 @@ describe('Future#all', () => {
         }
     });
 
+    it('should reject when one of the futures rejects even with limit (1)', async () => {
+        try {
+            const res = await Future.all(
+                [
+                    Future.of(true),
+                    Future.reject(new Error('rejection')),
+                    Future.of(true)
+                ], 2
+            ).await();
+            true.should.be.false;
+        }
+        catch(err: any) {
+            err.message.should.equal('rejection');
+        }
+    });
+
+    it('should reject when one of the futures rejects even with limit (2)', async () => {
+        try {
+            const res = await Future.all(
+                [
+                    Future.of(true),
+                    Future.of(true),
+                    Future.reject(new Error('rejection'))
+                ], 2
+            ).await();
+            true.should.be.false;
+        }
+        catch(err: any) {
+            err.message.should.equal('rejection');
+        }
+    });
+
     it('should resolve to an empty array when input is of length 0', async () => {
         const res = await Future.all([]).await();
         res.should.have.lengthOf(0);
@@ -567,6 +599,18 @@ describe('Future#all', () => {
         res[0].should.be.true;
         res[1].should.equal(1);
     });
+
+    it('should apply the futures in parallel but respect the limit', async () => {
+        const [d1, b1, d2, d3, b2, d4]= await Future.all(
+            [
+                date, sleep(1000), date,
+                date, sleep(1000), date
+            ], 3
+        ).await();
+        (d2.getTime() - d1.getTime()).should.be.within(0, 200);
+        (d3.getTime() - d2.getTime()).should.be.within(800, 1200);
+        (d4.getTime() - d3.getTime()).should.be.within(0, 200);
+    });
 });
 
 /**
@@ -580,7 +624,7 @@ describe('Future#allSafe', () => {
         return () => { clearTimeout(x); return true; };
     });
 
-    const date: Future<Date> = new Future((resolve) => {
+    const date: Future<Date, never> = new Future((resolve) => {
         resolve(new Date());
         return () => true;
     });
@@ -614,6 +658,20 @@ describe('Future#allSafe', () => {
         x.should.be.true;
         y.message.should.equal('rejection');
         z.should.be.true;
+    });
+
+    it('should keep the error when one of the futures rejects even with a limit', async () => {
+        const res = await Future.allSafe(
+            [
+                Future.of(true),
+                Future.reject(new Error('rejection')),
+                Future.reject(new Error('rejection2'))
+            ], 2
+        ).await();
+        const [x, y, z] = res;
+        x.should.be.true;
+        y.message.should.equal('rejection');
+        z.message.should.equal('rejection2');
     });
 
     it('should resolve to an empty array when input is of length 0', async () => {
@@ -655,6 +713,18 @@ describe('Future#allSafe', () => {
         const res = await Future.allSafe(futs).await();
         res[0].should.be.true;
         res[1].should.equal(1);
+    });
+
+    it('should apply the futures in parallel but respect the limit', async () => {
+        const [d1, b1, d2, d3, b2, d4]= await Future.allSafe(
+            [
+                date, sleep(1000), date,
+                date, sleep(1000), date
+            ], 3
+        ).await();
+        (d2.getTime() - d1.getTime()).should.be.within(0, 200);
+        (d3.getTime() - d2.getTime()).should.be.within(800, 1200);
+        (d4.getTime() - d3.getTime()).should.be.within(0, 200);
     });
 });
 

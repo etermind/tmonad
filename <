@@ -1,0 +1,17 @@
+import { Future } from './future.js';
+const sleep = (ms: number) => new Future<boolean, never>((resolve) => {
+    const x = setTimeout(() => {
+        resolve(true);
+    }, ms);
+    return () => { clearTimeout(x); return true; };
+});
+
+const date: Future<Date> = new Future((resolve) => {
+    resolve(new Date());
+    return () => true;
+});
+
+const res = await Future.all([
+    date, sleep(1000), date, sleep(1000), Future.reject('reject'), date
+], 2).await();
+console.log(res);

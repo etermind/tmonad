@@ -487,7 +487,9 @@ const returnedValue = fut.match(matchObject);
 - `Future.reject<never, E = Error>(value: E, cancel: () => true)` to create a future that always rejects. The cancel function is optional.
 - `Future.fromP<T, E = Error>(value: Promise<T>| () => Promise<T>, errorMapper: (e: Error) => E)` to create a future from a promise. Be sure to have read the `Futures are lazy` section. Also, this method allows to map the Error of a rejected promise into the Error type of the future. If you are fine with the error, the errorMapper is optional.
 - `Future.seq<T, E = Error>(futures: Future<T, E>[]): Future<T[], E>`: given a list of futures, apply them sequentially and return a list of results if all futures succeed, otherwiwse reject and cancel the ones not already called. 
-
+- `Future.seqSafe<T, E = Error>(futures: Future<T, E>[]): Future<T|E[], never>`: given a list of futures, apply them sequentially and return a list of results if all futures succeed, if some futures reject, the errors are kept directly in the results array contrary to `seq` which rejects and cancels the left ones. 
+- `Future.all<T, E = Error>(futures: Future<T, E>[], limit = 0): Future<T[], E>`: Same as `seq` but futures are applied in parallel. You can use `limit` to apply up to n futures in paralel. `limit = 0` means no limit. 
+- `Future.allSafe<T, E = Error>(futures: Future<T, E>[], limit = 0): Future<T|E[], never>`: Same as `seqSafe` but futures are applied in paralel. You can use `limit` to apply up to n futures in paralel. `limit = 0` means no limit. 
 - `.flatMap<U>((v: T) => Future<U, E>): Future<U, E>` to apply a function and returns a new Future. This allows to chain the computation (see examples).
 - `.flatMapErr<U>((v: E) => Future<T, U>): Future<T, U>` to apply a function and returns a new Future. This allows to chain the computation using the err value and potentially modify the new future error type.
 - `.map<U>((val: T) => U): Future<U, E>` to apply a function and wrap its result into a Future. Contrary to flatMap, you cannot chain two maps, because you'll end up having `Future<Future<T, E2>, E1>` instead of just an `Future<U, E>`.
