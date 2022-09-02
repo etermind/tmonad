@@ -213,8 +213,9 @@ export class Future<T, E = Error> { // tslint:disable-line
      */
     static allSafe<M extends Future<any, any>[]|[] = Future<any, any>[]>(
         arr: M
-    ): Future<{ [P in keyof M]: M[P] extends Future<infer U, any> ? U : never },
-        M[number] extends Future<any, infer U> ? U : never> {
+    ): Future<
+        { [P in keyof M]: M[P] extends Future<infer U, infer W> ? U|W : never }
+        > {
         const results: any[] = [];
         let resolvedCount = 0;
         return new Future<any, any>((resolve) => {

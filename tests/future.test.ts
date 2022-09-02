@@ -527,6 +527,11 @@ describe('Future#all', () => {
         }
     });
 
+    it('should resolve to an empty array when input is of length 0', async () => {
+        const res = await Future.all([]).await();
+        res.should.have.lengthOf(0);
+    });
+
     it('should apply the futures in parallel (1)', async () => {
         const res = await Future.all(
             [
@@ -559,6 +564,95 @@ describe('Future#all', () => {
     it('should work with an array of futures and not a tuple', async () => {
         const futs = [Future.of(true), Future.of(1)];
         const res = await Future.all(futs).await();
+        res[0].should.be.true;
+        res[1].should.equal(1);
+    });
+});
+
+/**
+ * allSafe
+ */
+describe('Future#allSafe', () => {
+    const sleep = (ms: number) => new Future<boolean, never>((resolve) => {
+        const x = setTimeout(() => {
+            resolve(true);
+        }, ms);
+        return () => { clearTimeout(x); return true; };
+    });
+
+    const date: Future<Date> = new Future((resolve) => {
+        resolve(new Date());
+        return () => true;
+    });
+
+    const sleepP = (ms: number) => () => new Promise((resolve) => {
+        setTimeout(() => {
+            resolve(true);
+        }, ms);
+    });
+
+    const dateP = () => new Promise((resolve) => resolve(new Date()));
+
+    it('should get a list of results when everything succeed', async () => {
+        const res = await Future.allSafe(
+            [Future.of(true), Future.of(false), Future.of(true)]
+        ).await();
+
+        res.should.have.lengthOf(3);
+        res[0].should.be.true;
+        res[1].should.be.false;
+        res[2].should.be.true;
+    });
+
+    it('should keep the error when one of the futures rejects', async () => {
+        const res = await Future.allSafe(
+            [
+                Future.of(true), Future.reject(new Error('rejection')), Future.of(true)
+            ]
+        ).await();
+        const [x, y, z] = res;
+        x.should.be.true;
+        y.message.should.equal('rejection');
+        z.should.be.true;
+    });
+
+    it('should resolve to an empty array when input is of length 0', async () => {
+        const res = await Future.allSafe([]).await();
+        res.should.have.lengthOf(0);
+    });
+
+    it('should apply the futures in parallel (1)', async () => {
+        const res = await Future.allSafe(
+            [
+                date, sleep(2000),
+                date, sleep(2000),
+                date
+            ]
+        ).await();
+        const elasped = (res[2] as Date).getTime() - (res[0] as Date).getTime();
+        elasped.should.be.within(0, 200);
+        const elasped2 = (res[4] as Date).getTime() - (res[2] as Date).getTime();
+        elasped2.should.be.within(0, 200);
+    });
+
+
+    it('should apply the future in parallel when using fromP', async () => {
+        const res = await Future.allSafe(
+            [
+                Future.fromP(dateP), Future.fromP(sleepP(2000)),
+                Future.fromP(dateP), Future.fromP(sleepP(2000)),
+                Future.fromP(dateP)
+            ]
+        ).await();
+        const elasped = (res[2] as Date).getTime() - (res[0] as Date).getTime();
+        elasped.should.be.within(0, 200);
+        const elasped2 = (res[4] as Date).getTime() - (res[2] as Date).getTime();
+        elasped2.should.be.within(0, 200);
+    });
+
+    it('should work with an array of futures and not a tuple', async () => {
+        const futs = [Future.of(true), Future.of(1)];
+        const res = await Future.allSafe(futs).await();
         res[0].should.be.true;
         res[1].should.equal(1);
     });
