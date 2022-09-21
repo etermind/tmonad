@@ -756,38 +756,22 @@ describe('Future#swap', () => {
  */
 describe('Future#run', () => {
     it('should return the value using generators', async () => {
-        const f= Future.of(true).run<string>(function* () {
-            const bool = yield;
-            const str = bool ? yield Future.of('ok') : yield Future.of('nok');
+        const f = Future.run(function* () {
+            const bool = yield* Future._(Future.of(true));
+            const str = yield* Future._(Future.of(bool ? 'ok' : 'nok'));
             return str;
-        }());
+        });
 
         const res = await f.await();
         res.should.equal('ok');
     });
 
     it('should throw an error even using generators', async () => {
-        const f = Future.reject(new Error('rejected')).run(function* () {
-            const bool = yield;
-            const str = bool ? yield Future.of('ok') : yield Future.of('nok');
+        const f = Future.run(function* () {
+            const bool = yield Future.reject(new Error('rejected'));
+            const str = yield* Future._(Future.of(bool ? 'ok' : 'nok'));
             return str;
-        }());
-
-        try {
-            await f.await();
-            should.fail('Never happen');
-        }
-        catch (err: any) {
-            err.message.should.equal('rejected');
-        }
-    });
-
-    it('should throw an error if an internal future throws', async () => {
-        const f = Future.of(false).run(function* () {
-            const bool = yield;
-            const str = bool ? yield Future.of('ok') : yield Future.reject(new Error('rejected'));
-            return str;
-        }());
+        });
 
         try {
             await f.await();
