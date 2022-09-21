@@ -781,4 +781,20 @@ describe('Future#run', () => {
             err.message.should.equal('rejected');
         }
     });
+
+    it('should throw an error if an internal future throws', async () => {
+        const f = Future.of(false).run(function* () {
+            const bool = yield;
+            const str = bool ? yield Future.of('ok') : yield Future.reject(new Error('rejected'));
+            return str;
+        }());
+
+        try {
+            await f.await();
+            should.fail('Never happen');
+        }
+        catch (err: any) {
+            err.message.should.equal('rejected');
+        }
+    });
 });
