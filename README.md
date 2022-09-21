@@ -467,15 +467,39 @@ Unless you call `await()`, `awaitOrElse(defaultValue)` or `extract(onSuccess, on
 Using `flatMap` is cool, but what if we want to have a flow that is closer to imperative programming that many people know so well? You can use [generators](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Objets_globaux/Generator).
 
 ```ts
-const finalResult = Future.of('abc123').run<boolean>(function* () {
-   const id = yield;
-   const user = yield findUserById('abc123'); // Returns a Future<User, Error> 
-   const email = yield pickEmail(user); // Returns a Future<stirng, Error>
-   const ok = yield sendEmail(email, 'Hello from TMonad'); // Returns a Future<boolean, Error>
-   return Future.of(ok); // You can also directly do: return yield sendEmail(..., ...);
-}());
+const finalResult = Future.run(function* () {
+   const id = yield* Future._(Future.of('abc123'));
+   const user = yield* Future._(findUserById('abc123')); // Returns a Future<User, Error> 
+   const email = yield* Future._(pickEmail(user)); // Returns a Future<stirng, Error>
+   const ok = yield* Future._(sendEmail(email, 'Hello from TMonad')); // Returns a Future<boolean, Error>
+   return ok;
+});
 
 // finalResult will be a Future with either holds true or an Error
+```
+
+You can also be shorter in your notation by aliasing the Future class:
+
+```ts
+import { Future as F } from '@etermind/tmonad';
+
+const finalResult = F.run(function* () {
+   const id = yield* F._(F.of('abc123'));
+   const user = yield* F._(findUserById('abc123')); // Returns a Future<User, Error> 
+   const email = yield* F._(pickEmail(user)); // Returns a Future<stirng, Error>
+   const ok = yield* F._(sendEmail(email, 'Hello from TMonad')); // Returns a Future<boolean, Error>
+   return ok;
+}) 
+```
+
+Finally, if you want to reject, you can use `yield`:
+
+```ts
+import { Future as F } from '@etermind/tmonad';
+
+const finalResult = F.run(function* () {
+   yield F.reject(new Error('Error...'));
+}) 
 ```
 
 #### Using match
@@ -506,6 +530,8 @@ const returnedValue = fut.match(matchObject);
 - `Future.seqSafe<T, E = Error>(futures: Future<T, E>[]): Future<T|E[], never>`: given a list of futures, apply them sequentially and return a list of results if all futures succeed, if some futures reject, the errors are kept directly in the results array contrary to `seq` which rejects and cancels the left ones. 
 - `Future.all<T, E = Error>(futures: Future<T, E>[], limit = 0): Future<T[], E>`: Same as `seq` but futures are applied in parallel. You can use `limit` to apply up to n futures in paralel. `limit = 0` means no limit. 
 - `Future.allSafe<T, E = Error>(futures: Future<T, E>[], limit = 0): Future<T|E[], never>`: Same as `seqSafe` but futures are applied in paralel. You can use `limit` to apply up to n futures in paralel. `limit = 0` means no limit. 
+- `Future._<A, E = Error>(f: Future<A, E>) => A`: Lift the value of the Future. It is needed when using the generators with Future to allow Typescript to be able to infer the type of the yielded future. See related section for details.
+- `Future.run<N, R, E = Error>(() => Generator<Future<N, E>, R, N>): Future<R, E>`: Use Futures with generators to a more imperative style of programming. See related section for details.
 - `.flatMap<U>((v: T) => Future<U, E>): Future<U, E>` to apply a function and returns a new Future. This allows to chain the computation (see examples).
 - `.flatMapErr<U>((v: E) => Future<T, U>): Future<T, U>` to apply a function and returns a new Future. This allows to chain the computation using the err value and potentially modify the new future error type.
 - `.map<U>((val: T) => U): Future<U, E>` to apply a function and wrap its result into a Future. Contrary to flatMap, you cannot chain two maps, because you'll end up having `Future<Future<T, E2>, E1>` instead of just an `Future<U, E>`.

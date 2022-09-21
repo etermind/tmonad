@@ -118,6 +118,16 @@ export class Future<T, E = Error> { // tslint:disable-line
     }
 
     /**
+     * Pick (yield a generator that cast the future into
+     * it's resolved value)
+     * @param f - The future
+     * @returns casted value
+     */
+    static * _<A, E = Error>(f: Future<A, E>) { // eslint-disable-line
+        return (yield f) as A;
+    }
+
+    /**
      * Sequentially apply a list of futures
      * If one fails, the other are cancelled and a rejection is thrown
      * If everything succeed, then you'll get a list of results
@@ -488,27 +498,23 @@ export class Future<T, E = Error> { // tslint:disable-line
     }
 
     /**
-     * Run the future using  generator
+     * Run the future using generator
      * @param gen - The generator
      * @returns the result
      */
-    run<U>(gen: Generator<any, any, U>): Future<U, E> {
-        /**
-         * One step a a time
-         * @param value - The value
-         * @returns result
-         */
-        const step = (value: any) => {
-            const result = gen.next(value);
-            result.value = result.value === undefined ? this : result.value;
-            if (result.done) {
-                return Future.of(value);
+    static run<N, R, E = Error>(
+        gen: () => Generator<Future<any, E>, R, N>
+    ): Future<R, E> {
+        const g = gen();
+        const step = (history?: N): Future<R, E> => {
+            const yielded = history ? g.next(history) : g.next();
+            if (yielded.done) {
+                return Future.of(yielded.value);
             }
-            return result.value.flatMap(step);
+            const { value } = yielded;
+            return value.flatMap((next) => step(next));
+
         };
-        return new Future((resolve, reject) => {
-            step(undefined).extract(resolve, reject);
-            return () => true;
-        });
+        return step();
     }
 }
