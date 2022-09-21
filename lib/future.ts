@@ -486,4 +486,29 @@ export class Future<T, E = Error> { // tslint:disable-line
         );
 
     }
+
+    /**
+     * Run the future using  generator
+     * @param gen - The generator
+     * @returns the result
+     */
+    run<U>(gen: Generator<any, any, U>): Future<U, E> {
+        /**
+         * One step a a time
+         * @param value - The value
+         * @returns result
+         */
+        const step = (value: any) => {
+            const result = gen.next(value);
+            result.value = result.value === undefined ? this : result.value;
+            if (result.done) {
+                return Future.of(value);
+            }
+            return result.value.flatMap(step);
+        };
+        return new Future((resolve, reject) => {
+            step(undefined).extract(resolve, reject);
+            return () => true;
+        });
+    }
 }

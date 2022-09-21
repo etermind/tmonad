@@ -462,6 +462,22 @@ cancel(); // Here we cancel the async computation before it can happen. So, you 
 
 Unless you call `await()`, `awaitOrElse(defaultValue)` or `extract(onSuccess, onFailure)`, the future won't be executed. It is lazy (contrary to promises).
 
+#### Future with generators
+
+Using `flatMap` is cool, but what if we want to have a flow that is closer to imperative programming that many people know so well? You can use [generators](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Objets_globaux/Generator).
+
+```ts
+const finalResult = Future.of('abc123').run<boolean>(function* () {
+   const id = yield;
+   const user = yield findUserById('abc123'); // Returns a Future<User, Error> 
+   const email = yield pickEmail(user); // Returns a Future<stirng, Error>
+   const ok = yield sendEmail(email, 'Hello from TMonad'); // Returns a Future<boolean, Error>
+   return Future.of(ok); // You can also directly do: return yield sendEmail(..., ...);
+}());
+
+// finalResult will be a Future with either holds true or an Error
+```
+
 #### Using match
 
 As a Future can be a success or a failure, sometimes it can be useful to do something with both states.
