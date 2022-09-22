@@ -781,4 +781,14 @@ describe('Future#run', () => {
             err.message.should.equal('rejected');
         }
     });
+
+    it('should work with falsy values', async () => {
+        const f = Future.run(function* () {
+            yield* Future._(Future.of(true));
+            const bool2 = yield* Future._(Future.of(false));
+            return bool2;
+        });
+        const r = await f.await();
+        r.should.be.false;
+    });
 });

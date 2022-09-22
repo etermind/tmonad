@@ -507,7 +507,7 @@ export class Future<T, E = Error> { // tslint:disable-line
     ): Future<R, E> {
         const g = gen();
         const step = (history?: N): Future<R, E> => {
-            const yielded = history ? g.next(history) : g.next();
+            const yielded = history !== undefined ? g.next(history) : g.next();
             if (yielded.done) {
                 return Future.of(yielded.value);
             }
