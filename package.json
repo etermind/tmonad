@@ -1,6 +1,6 @@
 {
     "name": "@etermind/tmonad",
-    "version": "4.3.1",
+    "version": "4.4.0",
     "description": "A set of tools to use pure functional programming with generators in TypeScript",
     "keywords": [
         "functional",
@@ -30,13 +30,14 @@
         "test": "npx jest --coverage",
         "test:watch": "npx jest --coverage --watch",
         "test:prod": "npm run lint && npm run test -- --no-cache",
-        "lint": "npx eslint --fix '{lib/**/*.ts,tests/**/*.ts}'",
+        "lint": "npx prettier -w . && npx eslint --fix '{lib/**/*.ts,tests/**/*.ts}'",
         "docs": "npx typedoc --out docs lib"
     },
     "dependencies": {
         "@types/node": "^16"
     },
     "devDependencies": {
+        "@codejedi365/gitlab-npm-audit-parser": "^2.x",
         "@types/chai": "^4",
         "@types/jest": "^28",
         "@types/sinon": "^10",
@@ -44,11 +45,12 @@
         "@typescript-eslint/parser": "^5",
         "chai": "4.x",
         "eslint": "^8",
+        "eslint-config-prettier": "^8.5.0",
         "eslint-plugin-jsdoc": "^39",
-        "@codejedi365/gitlab-npm-audit-parser": "^2.x",
         "jest": "^28.x",
         "jest-config": "^28.x",
         "lodash.camelcase": "^4.3.0",
+        "prettier": "^2.8.0",
         "rimraf": "^3",
         "sinon": "^14",
         "ts-jest": "^28.x",
@@ -57,7 +59,9 @@
         "typescript": "^4.x"
     },
     "jest": {
-        "extensionsToTreatAsEsm": [".ts"],
+        "extensionsToTreatAsEsm": [
+            ".ts"
+        ],
         "globals": {
             "ts-jest": {
                 "useESM": true

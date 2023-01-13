@@ -90,14 +90,14 @@ export interface Option<T> {
      * @param gen - The generator
      * @returns A new option
      */
-    run<U>(gen: Generator<Option<T>|undefined, Option<U>, T>): Option<U>;
+    run<U>(gen: Generator<Option<T> | undefined, Option<U>, T>): Option<U>;
 
     /**
      * Get the value from option, but if it's null, return the defaultValue
      * @param defaultValue - The default value
      * @returns The value from the option or the default value
      */
-    getOrElse<R>(defaultValue: R): T|R;
+    getOrElse<R>(defaultValue: R): T | R;
 
     /**
      * Get the value from option
@@ -228,7 +228,7 @@ export function someConstructor<T>(val: T): OptSome<T> {
         flatMatch<U>(fn: FlatMatch<T, U>): Option<U> {
             return fn.some(val);
         },
-        run<U>(gen: Generator<Option<T>, Option<U>, T|undefined>): Option<U> {
+        run<U>(gen: Generator<Option<T>, Option<U>, T | undefined>): Option<U> {
             /**
              * One step a a time
              * @param value - The value
@@ -252,7 +252,8 @@ export function someConstructor<T>(val: T): OptSome<T> {
  * @param val - Value
  * @returns none or some
  */
-export function Some<T>(val?: T | null): Option<T> { // eslint-disable-line
+// eslint-disable-next-line
+export function Some<T>(val?: T | null): Option<T> {
     return val === undefined || val === null
         ? noneConstructor<T>()
         : someConstructor<T>(val as T);

@@ -1,4 +1,4 @@
-import { Some, None, Option } from './option.js';
+import { Some, None, Option } from "./option.js";
 
 export enum ResultType {
     OK,
@@ -59,7 +59,7 @@ export interface ResultOps<T, E> {
      * @param defaultValue - The default value
      * @returns The value from the result or the default value
      */
-    getOrElse<R>(defaultValue: R): T|R;
+    getOrElse<R>(defaultValue: R): T | R;
 
     /**
      * Match
@@ -70,7 +70,7 @@ export interface ResultOps<T, E> {
      * @param f - The match object
      * @returns The returned value of the first or second function
      */
-    match<R, U>(f: Match<T, E, R, U>): Result<R|T, E|U>;
+    match<R, U>(f: Match<T, E, R, U>): Result<R | T, E | U>;
 
     /**
      * Flat Match
@@ -105,7 +105,7 @@ export interface ResultOps<T, E> {
      * @param f - The function to be called
      * @returns A result with an ok or an err
      */
-    flatMap<U, R>(f: (val: T) => Result<U, R>): Result<U, R|E>;
+    flatMap<U, R>(f: (val: T) => Result<U, R>): Result<U, R | E>;
 
     /**
      * Flatmap on error
@@ -113,7 +113,7 @@ export interface ResultOps<T, E> {
      * @param f - The function to be called
      * @returns A result with an ok or an err
      */
-    flatMapErr<U, R>(f: (err: E) => Result<U, R>): Result<T|U, E|R>;
+    flatMapErr<U, R>(f: (err: E) => Result<U, R>): Result<T | U, E | R>;
 
     /**
      * Run using generator
@@ -121,7 +121,13 @@ export interface ResultOps<T, E> {
      * @param gen - The generator
      * @returns A new result
      */
-    run<U, R>(gen: Generator<Result<T|U, E|R>|undefined, Result<U, E|R>, T|U>): Result<T|U, E|R>;
+    run<U, R>(
+        gen: Generator<
+            Result<T | U, E | R> | undefined,
+            Result<U, E | R>,
+            T | U
+        >
+    ): Result<T | U, E | R>;
 
     /**
      * Transform into option
@@ -170,7 +176,12 @@ export type Result<T, E> = Ok<T, E> | Err<T, E>;
  * @param this - The object
  * @param val - The hold value
  */
-export function _Ok<T>(this: Ok<T, {}> & { _val: T; }, val: T)  { // eslint-disable-line
+// eslint-disable-next-line
+export function _Ok<T>(
+    // eslint-disable-next-line
+    this: Ok<T, {}> & { _val: T },
+    val: T
+) {
     this._val = val;
 }
 
@@ -232,7 +243,14 @@ _Ok.prototype = {
  * @param this - The obj
  * @param err - The error
  */
-export function _Err<E>(this: Ok<{}, E> & { _err: E; }, err: E)  { // eslint-disable-line
+// eslint-disable-next-line
+export function _Err<E>(
+    this: Ok<{}, E> & {
+        // eslint-disable-next-line
+        _err: E;
+    },
+    err: E
+) {
     this._err = err;
 }
 
@@ -250,7 +268,7 @@ _Err.prototype = {
     getOrElse<R>(defaultValue: R) {
         return defaultValue;
     },
-    match(matchObject: any)  {
+    match(matchObject: any) {
         return Err(matchObject.err(this._err));
     },
     /* flatMatch<U>(matchObject: FlatMatch<T, E, U>): Result<U, E> {
@@ -281,7 +299,8 @@ _Err.prototype = {
  * @param value - The value
  * @returns the OK result
  */
-export function Ok<T>(value: T): Result<T, never> { // eslint-disable-line
+// eslint-disable-next-line
+export function Ok<T>(value: T): Result<T, never> {
     return new (_Ok as any)(value);
 }
 
@@ -290,6 +309,7 @@ export function Ok<T>(value: T): Result<T, never> { // eslint-disable-line
  * @param error - error
  * @returns the Error result
  */
-export function Err<E>(error: E): Result<never, E> { // eslint-disable-line
+// eslint-disable-next-line
+export function Err<E>(error: E): Result<never, E> {
     return new (_Err as any)(error);
 }

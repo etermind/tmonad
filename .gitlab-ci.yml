@@ -1,115 +1,115 @@
 image: node:12-alpine
 
 stages:
- - setup
- - test
- - build
- - deploy
- - security
+    - setup
+    - test
+    - build
+    - deploy
+    - security
 
 .caching:
-  cache:
-    key: ${CI_COMMIT_REF_SLUG}
-    paths:
-      - node_modules/
-    policy: pull
+    cache:
+        key: ${CI_COMMIT_REF_SLUG}
+        paths:
+            - node_modules/
+        policy: pull
 
 setup:cache:
-    stage: setup 
-    
+    stage: setup
+
     cache:
-      key: ${CI_COMMIT_REF_SLUG}
-      paths:
-      - node_modules/
-      
+        key: ${CI_COMMIT_REF_SLUG}
+        paths:
+            - node_modules/
+
     script:
-     - echo '//npm.superpitch.fr/:_authToken="${NPM_TOKEN}"' > .npmrc
-     - npm install --registry https://npm.superpitch.fr
+        - echo '//npm.superpitch.fr/:_authToken="${NPM_TOKEN}"' > .npmrc
+        - npm install --registry https://npm.superpitch.fr
 
     only:
-      changes:
-        - package-lock.json
-        #- package.json
+        changes:
+            - package-lock.json
+            #- package.json
 
 test:lint:
     extends: .caching
     stage: test
-      
+
     script:
-     - npm run lint
-     
+        - npm run lint
+
 test:unit:
     extends: .caching
     stage: test
-    
+
     script:
-     - npm run test
+        - npm run test
     coverage: /All files[^|]*\|[^|]*\s+([\d\.]+)/
 
 security:npm_dependency_scanning:
-  extends: .caching
-  stage: security
-  tags:
-      - secscan
-  allow_failure: true
-  script:
-      -  npm audit --audit-level=moderate --json | npx gitlab-npm-audit-parser -o gl-dependency-scanning-report.json 
-  artifacts:
-    reports:
-      dependency_scanning: gl-dependency-scanning-report.json
+    extends: .caching
+    stage: security
+    tags:
+        - secscan
+    allow_failure: true
+    script:
+        - npm audit --audit-level=moderate --json | npx gitlab-npm-audit-parser -o gl-dependency-scanning-report.json
+    artifacts:
+        reports:
+            dependency_scanning: gl-dependency-scanning-report.json
 
 build:docs:
-  extends: .caching
-  stage: build
-  script:
-    - npm run docs 
-  artifacts:
-    paths:
-      - docs 
-  only:
-    - master
-    - triggers
+    extends: .caching
+    stage: build
+    script:
+        - npm run docs
+    artifacts:
+        paths:
+            - docs
+    only:
+        - master
+        - triggers
 
 build:dist:
-  extends: .caching
-  stage: build
-  script:
-      - npm run prebuild
-      - npm run build
-  artifacts:
-    paths:
-      - dist
-  only:
-    - tags
-    - triggers
-  when: on_success
+    extends: .caching
+    stage: build
+    script:
+        - npm run prebuild
+        - npm run build
+    artifacts:
+        paths:
+            - dist
+    only:
+        - tags
+        - triggers
+    when: on_success
 
-deploy:publish:  
-  stage: deploy
-  before_script:
-    - echo '//npm.superpitch.fr/:_authToken="${NPM_TOKEN}"' > .npmrc
-  only:
-    - tags
-    - triggers
-  when: on_success
-  script:
-    - npm publish --registry https://npm.superpitch.fr
-  dependencies:
-      - build:dist
+deploy:publish:
+    stage: deploy
+    before_script:
+        - echo '//npm.superpitch.fr/:_authToken="${NPM_TOKEN}"' > .npmrc
+    only:
+        - tags
+        - triggers
+    when: on_success
+    script:
+        - npm publish --registry https://npm.superpitch.fr
+    dependencies:
+        - build:dist
 
 pages:
-  stage: deploy
-  before_script:
-    - echo '' 
-  script:
-    - mkdir .public
-    - cp -r docs/* .public
-    - mv .public public
-  artifacts:
-    paths:
-      - public
-  only:
-    - master
-    - triggers
-  dependencies:
-    - build:docs
+    stage: deploy
+    before_script:
+        - echo ''
+    script:
+        - mkdir .public
+        - cp -r docs/* .public
+        - mv .public public
+    artifacts:
+        paths:
+            - public
+    only:
+        - master
+        - triggers
+    dependencies:
+        - build:docs
