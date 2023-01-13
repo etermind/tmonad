@@ -1,10 +1,11 @@
-import { None, Some, Option } from './option.js';
-import { Err, Ok, Result } from './result.js';
+import { None, Some, Option } from "./option.js";
+import { Err, Ok, Result } from "./result.js";
 
 export type PromiseFactory<T> = () => Promise<T>;
 
 const isPromise = <T>(x: any): x is Promise<T> =>
-    x instanceof Promise || x != null && typeof (x as any).then === 'function';
+    x instanceof Promise ||
+    (x != null && typeof (x as any).then === "function");
 
 /**
  * Match
@@ -54,19 +55,26 @@ export interface FlatMatchErr<T, U, E = Error> {
 /**
  * Future
  */
-export class Future<T, E = Error> { // tslint:disable-line
+export class Future<T, E = Error> {
+    // tslint:disable-line
     /**
      * Action
      */
-    protected _action: (resolve: (d: T) => void, reject: (e: E) => void) => () => boolean;
+    protected _action: (
+        resolve: (d: T) => void,
+        reject: (e: E) => void
+    ) => () => boolean;
 
     /**
      * Constructor
      * @param action - Action to be run
      */
     constructor(
-        action: (resolve: (d: T) => void, reject: (e: E) => void) => () => boolean
-    )  {
+        action: (
+            resolve: (d: T) => void,
+            reject: (e: E) => void
+        ) => () => boolean
+    ) {
         this._action = action;
     }
 
@@ -89,10 +97,34 @@ export class Future<T, E = Error> { // tslint:disable-line
      * @param cancel - Cancel function
      * @returns the new future
      */
-    static reject<E>(x: E, cancel: () => boolean = () => true): Future<never, E> {
+    static reject<E>(
+        x: E,
+        cancel: () => boolean = () => true
+    ): Future<never, E> {
         return new Future((_, reject) => {
             reject(x);
             return cancel;
+        });
+    }
+
+    /**
+     * Create a future from any non-async function
+     * @param x - The non async function
+     * @param m - A mapper between an Error and the type of E
+     * @returns the Future
+     */
+    static from<T, E = Error>(
+        x: () => T,
+        m: (e: Error) => E = (e) => e as any
+    ): Future<T, E> {
+        return new Future((resolve, reject) => {
+            try {
+                const res = x();
+                resolve(res);
+            } catch (err: any) {
+                reject(m(err));
+            }
+            return () => true;
         });
     }
 
@@ -103,14 +135,13 @@ export class Future<T, E = Error> { // tslint:disable-line
      * @returns the Future
      */
     static fromP<T, E = Error>(
-        x: Promise<T>|PromiseFactory<T>,
-        m: (e: Error) => E = e => e as any
+        x: Promise<T> | PromiseFactory<T>,
+        m: (e: Error) => E = (e) => e as any
     ): Future<T, E> {
         return new Future((resolve, reject) => {
             if (isPromise(x)) {
                 x.then(resolve, (e: Error) => reject(m(e)));
-            }
-            else {
+            } else {
                 x().then(resolve, (e: Error) => reject(m(e)));
             }
             return () => true;
@@ -123,7 +154,8 @@ export class Future<T, E = Error> { // tslint:disable-line
      * @param f - The future
      * @returns casted value
      */
-    static * _<A, E = Error>(f: Future<A, E>) { // eslint-disable-line
+    // eslint-disable-next-line
+    static *_<A, E = Error>(f: Future<A, E>) {
         return (yield f) as A;
     }
 
@@ -134,24 +166,33 @@ export class Future<T, E = Error> { // tslint:disable-line
      * @param arr - The array of futures
      * @returns a future containing the list of results or a rejection
      */
-    static seq<X = Error, M extends Future<any, any>[]|[] = Future<any, X>[]>(
+    static seq<X = Error, M extends Future<any, any>[] | [] = Future<any, X>[]>(
         arr: M
-    ): Future<{ [P in keyof M]: M[P] extends Future<infer U, any> ? U : never },
-        M[number] extends Future<any, infer U> ? U : never> {
-        return Future.fromP(async () => {
-            const results: any = [];
-            for(const [i, f] of arr.entries()) {
-                try {
-                    const x = await f.await();
-                    results.push(x);
+    ): Future<
+        { [P in keyof M]: M[P] extends Future<infer U, any> ? U : never },
+        M[number] extends Future<any, infer U> ? U : never
+    > {
+        return Future.fromP(
+            async () => {
+                const results: any = [];
+                for (const [i, f] of arr.entries()) {
+                    try {
+                        const x = await f.await();
+                        results.push(x);
+                    } catch (err: any) {
+                        arr.slice(i).map((x) =>
+                            x.extract(
+                                () => {},
+                                () => {}
+                            )()
+                        );
+                        throw err;
+                    }
                 }
-                catch(err: any) {
-                    arr.slice(i).map(x => x.extract(() => {}, () => {})());
-                    throw err;
-                }
-            }
-            return results;
-        }, (e) => e as any);
+                return results;
+            },
+            (e) => e as any
+        );
     }
 
     /**
@@ -162,11 +203,13 @@ export class Future<T, E = Error> { // tslint:disable-line
      * @param limit - Limit the execution up to n futures in parallel. 0 means no limit
      * @returns a future containing the list of results or a rejection
      */
-    static all<X = Error, M extends Future<any, any>[]|[] = Future<any, X>[]>(
+    static all<X = Error, M extends Future<any, any>[] | [] = Future<any, X>[]>(
         arr: M,
         limit: number = 0
-    ): Future<{ [P in keyof M]: M[P] extends Future<infer U, any> ? U : never },
-        M[number] extends Future<any, infer U> ? U : never> {
+    ): Future<
+        { [P in keyof M]: M[P] extends Future<infer U, any> ? U : never },
+        M[number] extends Future<any, infer U> ? U : never
+    > {
         let results: any[] = [];
         if (arr.length === 0) {
             return Future.of([] as any);
@@ -175,15 +218,15 @@ export class Future<T, E = Error> { // tslint:disable-line
             const iterable: any = new Object();
             iterable[Symbol.asyncIterator] = async function* () {
                 let data = [];
-                for(const [i, fut] of arr.entries()) {
+                for (const [i, fut] of arr.entries()) {
                     data.push(fut);
-                    if ((i+1) % limit === 0) {
+                    if ((i + 1) % limit === 0) {
                         try {
                             yield {
-                                isError: false, results: await Future.all(data, 0).await(),
+                                isError: false,
+                                results: await Future.all(data, 0).await(),
                             };
-                        }
-                        catch (error: any) {
+                        } catch (error: any) {
                             yield { isError: true, error };
                         }
                         data = [];
@@ -191,37 +234,43 @@ export class Future<T, E = Error> { // tslint:disable-line
                 }
                 try {
                     yield {
-                        isError: false, results: await Future.all(data, 0).await(),
+                        isError: false,
+                        results: await Future.all(data, 0).await(),
                     };
-                }
-                catch (error: any) {
+                } catch (error: any) {
                     yield { isError: true, error };
                 }
             };
 
-            return Future.fromP(async () => {
-                for await (const res of iterable) {
-                    if (res.isError) {
-                        throw res.error;
+            return Future.fromP(
+                async () => {
+                    for await (const res of iterable) {
+                        if (res.isError) {
+                            throw res.error;
+                        }
+                        results = results.concat(res.results);
                     }
-                    results = results.concat(res.results);
-                }
-                return results as any;
-            }, e => e as any);
+                    return results as any;
+                },
+                (e) => e as any
+            );
         }
 
         return new Future((resolve, reject) => {
             let resolvedCount = 0;
             arr.forEach((fut, i) => {
-                fut.extract((d) => {
-                    results[i] = d;
-                    resolvedCount += 1;
-                    if (resolvedCount === arr.length) {
-                        resolve(results as any);
+                fut.extract(
+                    (d) => {
+                        results[i] = d;
+                        resolvedCount += 1;
+                        if (resolvedCount === arr.length) {
+                            resolve(results as any);
+                        }
+                    },
+                    (err) => {
+                        reject(err);
                     }
-                }, (err) => {
-                    reject(err);
-                });
+                );
             });
             return () => true;
         });
@@ -234,24 +283,26 @@ export class Future<T, E = Error> { // tslint:disable-line
      * @param arr - The array of futures
      * @returns a future containing the results and/or the rejection
      */
-    static seqSafe<M extends Future<any, any>[]|[] = Future<any, any>[]>(
+    static seqSafe<M extends Future<any, any>[] | [] = Future<any, any>[]>(
         arr: M
-    ): Future<
-        { [P in keyof M]: M[P] extends Future<infer U, infer W> ? U|W : never }
-        > {
-        return Future.fromP(async () => {
-            const results: any = [];
-            for(const [, f] of arr.entries()) {
-                try {
-                    const x = await f.await();
-                    results.push(x);
+    ): Future<{
+        [P in keyof M]: M[P] extends Future<infer U, infer W> ? U | W : never;
+    }> {
+        return Future.fromP(
+            async () => {
+                const results: any = [];
+                for (const [, f] of arr.entries()) {
+                    try {
+                        const x = await f.await();
+                        results.push(x);
+                    } catch (err: any) {
+                        results.push(err);
+                    }
                 }
-                catch(err: any) {
-                    results.push(err);
-                }
-            }
-            return results;
-        }, (e) => e as any);
+                return results;
+            },
+            (e) => e as any
+        );
     }
 
     /**
@@ -262,11 +313,12 @@ export class Future<T, E = Error> { // tslint:disable-line
      * @param limit - Limit the execution up to n futures in parallel. 0 means no limit
      * @returns a future containing the list of results and rejections
      */
-    static allSafe<M extends Future<any, any>[]|[] = Future<any, any>[]>(
+    static allSafe<M extends Future<any, any>[] | [] = Future<any, any>[]>(
         arr: M,
         limit: number = 0
-    ): Future<{ [P in keyof M]: M[P] extends Future<infer U, infer W> ? U|W : never }> {
-
+    ): Future<{
+        [P in keyof M]: M[P] extends Future<infer U, infer W> ? U | W : never;
+    }> {
         let results: any[] = [];
         if (arr.length === 0) {
             return Future.of([] as any);
@@ -275,9 +327,9 @@ export class Future<T, E = Error> { // tslint:disable-line
             const iterable: any = new Object();
             iterable[Symbol.asyncIterator] = async function* () {
                 let data = [];
-                for(const [i, fut] of arr.entries()) {
+                for (const [i, fut] of arr.entries()) {
                     data.push(fut);
-                    if ((i+1) % limit === 0) {
+                    if ((i + 1) % limit === 0) {
                         yield await Future.allSafe(data, 0).await();
                         data = [];
                     }
@@ -285,30 +337,36 @@ export class Future<T, E = Error> { // tslint:disable-line
                 yield await Future.allSafe(data, 0).await();
             };
 
-            return Future.fromP(async () => {
-                for await (const res of iterable) {
-                    results = results.concat(res);
-                }
-                return results as any;
-            }, e => e as any);
+            return Future.fromP(
+                async () => {
+                    for await (const res of iterable) {
+                        results = results.concat(res);
+                    }
+                    return results as any;
+                },
+                (e) => e as any
+            );
         }
 
         return new Future((resolve) => {
             let resolvedCount = 0;
             arr.forEach((fut, i) => {
-                fut.extract((d) => {
-                    results[i] = d;
-                    resolvedCount += 1;
-                    if (resolvedCount === arr.length) {
-                        resolve(results as any);
+                fut.extract(
+                    (d) => {
+                        results[i] = d;
+                        resolvedCount += 1;
+                        if (resolvedCount === arr.length) {
+                            resolve(results as any);
+                        }
+                    },
+                    (err) => {
+                        results[i] = err;
+                        resolvedCount += 1;
+                        if (resolvedCount === arr.length) {
+                            resolve(results as any);
+                        }
                     }
-                }, (err) => {
-                    results[i] = err;
-                    resolvedCount += 1;
-                    if (resolvedCount === arr.length) {
-                        resolve(results as any);
-                    }
-                });
+                );
             });
             return () => true;
         });
@@ -337,11 +395,14 @@ export class Future<T, E = Error> { // tslint:disable-line
      * @param defaultValue - The default value
      * @returns the promise
      */
-    awaitOrElse<U>(defaultValue: U): Promise<T|U> {
-        return new Promise<U|T>((resolve) => {
-            this.extract((d) => {
-                resolve(d);
-            }, () => resolve(defaultValue));
+    awaitOrElse<U>(defaultValue: U): Promise<T | U> {
+        return new Promise<U | T>((resolve) => {
+            this.extract(
+                (d) => {
+                    resolve(d);
+                },
+                () => resolve(defaultValue)
+            );
         });
     }
 
@@ -352,8 +413,7 @@ export class Future<T, E = Error> { // tslint:disable-line
     async toOption(): Promise<Option<T>> {
         try {
             return Some(await this.await());
-        }
-        catch (err) {
+        } catch (err) {
             return None;
         }
     }
@@ -365,8 +425,7 @@ export class Future<T, E = Error> { // tslint:disable-line
     async toResult(): Promise<Result<T, E>> {
         try {
             return Ok(await this.await());
-        }
-        catch (err: any) {
+        } catch (err: any) {
             return Err(err);
         }
     }
@@ -378,7 +437,7 @@ export class Future<T, E = Error> { // tslint:disable-line
      * @returns A new future
      */
     map<U>(f: (val: T) => U): Future<U, E> {
-        return this.flatMap(x => Future.of(f(x)));
+        return this.flatMap((x) => Future.of(f(x)));
     }
 
     /**
@@ -388,7 +447,7 @@ export class Future<T, E = Error> { // tslint:disable-line
      * @returns A future
      */
     mapErr<U>(f: (err: E) => U): Future<T, U> {
-        return this.flatMapErr(x => Future.reject(f(x)));
+        return this.flatMapErr((x) => Future.reject(f(x)));
     }
 
     /**
@@ -413,13 +472,13 @@ export class Future<T, E = Error> { // tslint:disable-line
                 (data: T) => {
                     try {
                         return f(data).extract(resolve, reject);
-                    }
-                    catch (err: any) {
+                    } catch (err: any) {
                         return reject(err);
                     }
                 },
                 (e: E) => reject(e)
-            ));
+            )
+        );
     }
 
     /**
@@ -435,12 +494,12 @@ export class Future<T, E = Error> { // tslint:disable-line
                 (e: E) => {
                     try {
                         return f(e).extract(resolve, reject);
-                    }
-                    catch (err: any) {
+                    } catch (err: any) {
                         return reject(err);
                     }
                 }
-            ));
+            )
+        );
     }
 
     /**
@@ -451,8 +510,8 @@ export class Future<T, E = Error> { // tslint:disable-line
     match<U>(matchObject: Match<T, U, E>): Future<U, E> {
         /* istanbul ignore next */
         return this.flatMatch({
-            onSuccess: x => Future.of(matchObject.onSuccess(x)),
-            onFailure: e => Future.of(matchObject.onFailure(e)),
+            onSuccess: (x) => Future.of(matchObject.onSuccess(x)),
+            onFailure: (e) => Future.of(matchObject.onFailure(e)),
         });
     }
 
@@ -464,8 +523,8 @@ export class Future<T, E = Error> { // tslint:disable-line
     matchErr<U>(matchObject: Match<T, U, E>): Future<T, U> {
         /* istanbul ignore next */
         return this.flatMatchErr({
-            onSuccess: x => Future.reject(matchObject.onSuccess(x)),
-            onFailure: e => Future.reject(matchObject.onFailure(e)),
+            onSuccess: (x) => Future.reject(matchObject.onSuccess(x)),
+            onFailure: (e) => Future.reject(matchObject.onFailure(e)),
         });
     }
 
@@ -477,9 +536,11 @@ export class Future<T, E = Error> { // tslint:disable-line
     flatMatch<U>(matchObject: FlatMatch<T, U, E>): Future<U, E> {
         return new Future((resolve, reject) =>
             this.extract(
-                (data: T) => matchObject.onSuccess(data).extract(resolve, reject),
+                (data: T) =>
+                    matchObject.onSuccess(data).extract(resolve, reject),
                 (e: E) => matchObject.onFailure(e).extract(resolve, reject)
-            ));
+            )
+        );
     }
 
     /**
@@ -490,11 +551,39 @@ export class Future<T, E = Error> { // tslint:disable-line
     flatMatchErr<U>(matchObject: FlatMatchErr<T, U, E>): Future<T, U> {
         return new Future((resolve, reject) =>
             this.extract(
-                (data: T) => matchObject.onSuccess(data).extract(resolve, reject),
+                (data: T) =>
+                    matchObject.onSuccess(data).extract(resolve, reject),
                 (e: E) => matchObject.onFailure(e).extract(resolve, reject)
             )
         );
+    }
 
+    /**
+     * Tap into the Future value (to log the data for instance)
+     * @param cb - The callback that it invokes when tapping
+     * @returns a new future
+     */
+    tap(cb: (d: T) => void): Future<T, E> {
+        return new Future((resolve, reject) => {
+            return this.extract((d) => {
+                cb(d);
+                resolve(d);
+            }, reject);
+        });
+    }
+
+    /**
+     * Tap into the Future error (to log the error for instance)
+     * @param cb - The callback that it invokes when tapping
+     * @returns a new future
+     */
+    tapErr(cb: (d: E) => void): Future<T, E> {
+        return new Future((resolve, reject) => {
+            return this.extract(resolve, (e) => {
+                cb(e);
+                reject(e);
+            });
+        });
     }
 
     /**
@@ -513,7 +602,6 @@ export class Future<T, E = Error> { // tslint:disable-line
             }
             const { value } = yielded;
             return value.flatMap((next) => step(next));
-
         };
         return step();
     }

@@ -1,4 +1,4 @@
-# TMonad 
+# TMonad
 
 ## Description
 
@@ -52,7 +52,7 @@ The structure is simple: `lib` contains the implementation of the library and `t
 The Option type allows error handling and representing missing values. An Option value can be either Some (meaning it holds a) or None (meaning it has no value). The `Some` constructor is used for wrapping present values while the `None` constructor is used when a value is absent. It becomes easy to manipulate optional values without null checking or exception handling.
 
 ```ts
-import { Some, None, Option } from '@etermind/tmonad';
+import { Some, None, Option } from "@etermind/tmonad";
 
 // You can create an Option with some value using .some()
 const someValue = Some(4); // Option holds a value of 4 (it is a number);
@@ -71,29 +71,33 @@ Where Option shines the most it's when you need to do a serie of computations an
 
 ```ts
 const findUserById = (id: string) => {
-    if(id === 'abc123') {
-        return { firstname: 'John', lastname: 'Smith', id: 'abc123', email: 'john.smith@doe.com' };
-    }
-    return null;
-}
+  if (id === "abc123") {
+    return {
+      firstname: "John",
+      lastname: "Smith",
+      id: "abc123",
+      email: "john.smith@doe.com",
+    };
+  }
+  return null;
+};
 
 const pickEmail = (user: any) => user.email;
 
 const sendEmail = (email: string, content: string) => {
-    // Send email HERE
+  // Send email HERE
+};
+
+const myUser = findUserById("abc123");
+if (myUser != null) {
+  const email = pickEmail(myUser);
+  if (email != null) {
+    sendEmail(email, "Hello from TMonad");
+  }
 }
-
-
-const myUser = findUserById('abc123');
-if(myUser != null) {
-    const email = pickEmail(myUser);
-    if (email != null) {
-        sendEmail(email, 'Hello from TMonad');
-    }
-} 
 ```
 
-In a classic implementation you are going to check again and again if you get the *right value* or something that is *undefined*. You spend a lot of time checking your data and nesting if/else statements. This makes the code harder to read and to maintain.
+In a classic implementation you are going to check again and again if you get the _right value_ or something that is _undefined_. You spend a lot of time checking your data and nesting if/else statements. This makes the code harder to read and to maintain.
 
 How can we use `Option` to the rescue?
 
@@ -123,7 +127,7 @@ const finalResult = Some('abc123')
     .flatMap(email => sendEmail(email, 'Hello from TMonad'))
     .extract();
 
-// finalResult will be either true / false or null 
+// finalResult will be either true / false or null
 ```
 
 In this implementation, no null checking, no nesting, each of your intermediate function returns an option and you can chain the call using `flatMap` to get the final result.
@@ -140,13 +144,13 @@ To do so, we use the `match` function:
 const opt = Some(4);
 
 const matchObject = {
-    some: (v: number) => v * 4,
-    none: () => 2, 
+  some: (v: number) => v * 4,
+  none: () => 2,
 };
 
 const returnedOption = opt.match(matchObject);
 
-// The returnedOption is also an Option 
+// The returnedOption is also an Option
 ```
 
 #### Option with generators
@@ -154,18 +158,21 @@ const returnedOption = opt.match(matchObject);
 Using `flatMap` is cool, but what if we want to have a flow that is closer to imperative programming that many people know so well? You can use [generators](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Objets_globaux/Generator).
 
 ```ts
-const finalResult = Some('abc123').run<boolean>(val, function* () {
+const finalResult = Some("abc123").run<boolean>(
+  val,
+  (function* () {
     const id = yield; // Yield the value of Some('abc123')
     const user = yield findUserById(id);
     const email = yield pickEmail(user);
-    const ok = yield sendEmail(email, 'Hello from TMonad');
+    const ok = yield sendEmail(email, "Hello from TMonad");
     return Some(ok);
-}());
+  })()
+);
 
 // finalResult will be an option with either true / false or null
 ```
 
-The behaviour is **exactly** the same as using flatMap, only the way of writing is different. You need to *yield* *Option* (or functions that return *Option*s). At the end, you need to return an *Option*. You are guaranteed that if any of your function yields an Option.none(), the computation stops with no error. Pretty neat, uh?
+The behaviour is **exactly** the same as using flatMap, only the way of writing is different. You need to _yield_ _Option_ (or functions that return *Option*s). At the end, you need to return an _Option_. You are guaranteed that if any of your function yields an Option.none(), the computation stops with no error. Pretty neat, uh?
 
 #### Option API
 
@@ -183,7 +190,7 @@ The behaviour is **exactly** the same as using flatMap, only the way of writing 
 
 ### Result
 
-The Option type allows error handling and representing missing values, but when an error is raised, the only information you get is null. Sometimes it is useful to have a little more, that is when Result comes into play. With Result you have two state: 
+The Option type allows error handling and representing missing values, but when an error is raised, the only information you get is null. Sometimes it is useful to have a little more, that is when Result comes into play. With Result you have two state:
 
 1. An Ok state that holds your value (like Option.some)
 2. An Err state that holds your error (or whatever you consider as an error).
@@ -216,7 +223,7 @@ const finalResult = Ok('abc123')
     .flatMap(email => sendEmail(email, 'Hello from TMonad'))
     .extract();
 
-// finalResult will be either true or one of the three possible errors. 
+// finalResult will be either true or one of the three possible errors.
 ```
 
 #### Result with generators
@@ -224,13 +231,15 @@ const finalResult = Ok('abc123')
 Using `flatMap` is cool, but what if we want to have a flow that is closer to imperative programming that many people know so well? You can use [generators](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Objets_globaux/Generator).
 
 ```ts
-const finalResult = Ok('abc123').run<boolean>(function* () {
-   const id = yield;
-   const user = yield findUserById('abc123');
-   const email = yield pickEmail(user);
-   const ok = yield sendEmail(email, 'Hello from TMonad');
-   return Ok(ok);
-}());
+const finalResult = Ok("abc123").run<boolean>(
+  (function* () {
+    const id = yield;
+    const user = yield findUserById("abc123");
+    const email = yield pickEmail(user);
+    const ok = yield sendEmail(email, "Hello from TMonad");
+    return Ok(ok);
+  })()
+);
 
 // finalResult will be a result with either Ok(true) or Err(...)
 ```
@@ -245,8 +254,8 @@ To do so, we use the `match` function:
 const result = Ok(4);
 
 const matchObject = {
-    ok: (v: number) => doSomething,
-    err: (e: Error) => doSomething, 
+  ok: (v: number) => doSomething,
+  err: (e: Error) => doSomething,
 };
 
 const returnedValue = result.match(matchObject);
@@ -265,11 +274,11 @@ const returnedValue = result.match(matchObject);
 - `.mapErr<R>((val: E) => R): Result<O, R|ErrType>` to apply a function and wrap its result into a result. The function takes the error value.
 - `.extract(): OkType|ErrType` to extract the value of Ok or the value of Err.
 - `.getOrElse<R>(defaultValue: R): OkType|R` to extract the value of Ok, or if the Result is an error, return the default value.
-- `.isOk(): boolean` checks if a Result is ok. 
+- `.isOk(): boolean` checks if a Result is ok.
 - `.isErr(): boolean` checks if a Result is an error.
-- `.match<T, U>({ ok: (val: T) => U, err: (e: E) => U }): Result<U, E> | Result<T, U>` to execute the first function when Result holds an Ok value and the second function when it holds an error. 
+- `.match<T, U>({ ok: (val: T) => U, err: (e: E) => U }): Result<U, E> | Result<T, U>` to execute the first function when Result holds an Ok value and the second function when it holds an error.
 
-### Future 
+### Future
 
 Futures are promises on steroïds. They allow for async computation, but contrary to promises and just like Results you can chain Futures. Let's see an example
 
@@ -292,14 +301,14 @@ const sendEmail = async (email: string, content: string) => {
     return true;
 }
 
-async function run() { 
+async function run() {
     const finalResult = await Future.fromP(findUserById('abc123'))
         .flatMap(id => Future.fromP(findUserById(id)))
         .flatMap(user => Future.fromP(pickEmail(user)))
         .flatMap(email => Future.fromP(sendEmail(email, 'Hello from TMonad')))
         .awaitOrElse(false);
 
-    // finalResult will be either true or false. 
+    // finalResult will be either true or false.
 }
 ```
 
@@ -307,18 +316,18 @@ You can instantiate your own Future, just like you do with a promise:
 
 ```ts
 const fut1 = new Future<any>((resolve, reject) => {
-    try {
-        // Do something
-        const res = myAsyncComputation();
-        resolve(res);
-    } catch (err: any) {
-        reject(err);
-    }
-    return () => true; // Return a cancellation function (more details later)
+  try {
+    // Do something
+    const res = myAsyncComputation();
+    resolve(res);
+  } catch (err: any) {
+    reject(err);
+  }
+  return () => true; // Return a cancellation function (more details later)
 });
 
 const fut2 = Future.of(4); // It's like Promise.resolve(4);
-const fut3 = Future.reject('test'); // It's like Promise.reject('test);
+const fut3 = Future.reject("test"); // It's like Promise.reject('test);
 ```
 
 You can see a good introduction to futures [here](https://github.com/jsanchesleao/fantasy-future).
@@ -331,8 +340,9 @@ It is important to know that, because when you create a `Future` from a `Promise
 
 ```ts
 const myFuture = Future.fromP(
-    () => new Promise((resolve) => {
-        setTimeout(() => resolve(true), 2000)
+  () =>
+    new Promise((resolve) => {
+      setTimeout(() => resolve(true), 2000);
     })
 );
 ```
@@ -342,100 +352,108 @@ const myFuture = Future.fromP(
 Look at that example that runs `Future`s in sequence:
 
 ```ts
-import { Future } from '.';
+import { Future } from ".";
 
-const date1 = new Future((resolve) => { 
-    resolve(new Date());
-    return () => true;
-}); 
-const date2 = new Future((resolve) => { 
-    resolve(new Date());
-    return () => true;
-}); 
-const date3 = new Future((resolve) => { 
-    resolve(new Date());
-    return () => true;
-}); 
+const date1 = new Future((resolve) => {
+  resolve(new Date());
+  return () => true;
+});
+const date2 = new Future((resolve) => {
+  resolve(new Date());
+  return () => true;
+});
+const date3 = new Future((resolve) => {
+  resolve(new Date());
+  return () => true;
+});
 const timeout1 = new Future((resolve) => {
-    const x = setTimeout(() => resolve(true), 2000)
-    return () => {
-        if (x) {
-            clearTimeout(x);
-        }
-        return true;
+  const x = setTimeout(() => resolve(true), 2000);
+  return () => {
+    if (x) {
+      clearTimeout(x);
     }
+    return true;
+  };
 });
 const timeout2 = new Future((resolve) => {
-    const x = setTimeout(() => resolve(true), 2000)
-    return () => {
-        if (x) {
-            clearTimeout(x);
-        }
-        return true;
+  const x = setTimeout(() => resolve(true), 2000);
+  return () => {
+    if (x) {
+      clearTimeout(x);
     }
+    return true;
+  };
 });
 const seqF = [date1, timeout1, date2, timeout2, date3];
 
 async function run() {
-    const results = await Future.seq(seqF).await();
-    // [2022-08-12T07:56:13.972Z, true, 2022-08-12T07:56:15.977Z, true, 2022-08-12T07:56:17.980Z]
-    // You see that each timestamp has a difference of around 2 seconds. 
-    // So futures are indeed computed sequentially
-    console.log(results);
+  const results = await Future.seq(seqF).await();
+  // [2022-08-12T07:56:13.972Z, true, 2022-08-12T07:56:15.977Z, true, 2022-08-12T07:56:17.980Z]
+  // You see that each timestamp has a difference of around 2 seconds.
+  // So futures are indeed computed sequentially
+  console.log(results);
 }
 
-run().then()
+run().then();
 ```
 
 Now let's try the same thing with `Promise`s and `Future.fromP`:
 
 ```ts
-import { Future } from '.';
+import { Future } from ".";
 
-const date1 = new Promise((resolve) => resolve(new Date())); 
-const date2 = new Promise((resolve) => resolve(new Date())); 
-const date3 = new Promise((resolve) => resolve(new Date())); 
-const timeout1 = new Promise((resolve) => setTimeout(() => resolve(true), 2000));
-const timeout2 = new Promise((resolve) => setTimeout(() => resolve(true), 2000));
+const date1 = new Promise((resolve) => resolve(new Date()));
+const date2 = new Promise((resolve) => resolve(new Date()));
+const date3 = new Promise((resolve) => resolve(new Date()));
+const timeout1 = new Promise((resolve) =>
+  setTimeout(() => resolve(true), 2000)
+);
+const timeout2 = new Promise((resolve) =>
+  setTimeout(() => resolve(true), 2000)
+);
 const seqF = [
-    Future.fromP(date1), Future.fromP(timeout1),
-    Future.fromP(date2), Future.fromP(timeout2),
-    Future.fromP(date3)
+  Future.fromP(date1),
+  Future.fromP(timeout1),
+  Future.fromP(date2),
+  Future.fromP(timeout2),
+  Future.fromP(date3),
 ];
 
 async function run() {
-    const results = await Future.seq(seqF).await();
-    // [2022-08-12T08:07:04.981Z, true, 2022-08-12T08:07:04.981Z, true, 2022-08-12T08:07:04.981Z] 
-    // You see that each timestamp is the same. 
-    // So futures are not computed sequentially.
-    console.log(results);
+  const results = await Future.seq(seqF).await();
+  // [2022-08-12T08:07:04.981Z, true, 2022-08-12T08:07:04.981Z, true, 2022-08-12T08:07:04.981Z]
+  // You see that each timestamp is the same.
+  // So futures are not computed sequentially.
+  console.log(results);
 }
 
-run().then()
+run().then();
 ```
 
 If you want to use `Promise`s with `Future.seq`, you need to use a `Promise` factory:
 
-
 ```ts
-import { Future } from '.';
+import { Future } from ".";
 
-const date = () => new Promise((resolve) => resolve(new Date())); 
-const timeout = () => new Promise((resolve) => setTimeout(() => resolve(true), 2000));
+const date = () => new Promise((resolve) => resolve(new Date()));
+const timeout = () =>
+  new Promise((resolve) => setTimeout(() => resolve(true), 2000));
 const seqF = [
-    Future.fromP(date), Future.fromP(timeout),
-    Future.fromP(date), Future.fromP(timeout),
-    Future.fromP(date)
+  Future.fromP(date),
+  Future.fromP(timeout),
+  Future.fromP(date),
+  Future.fromP(timeout),
+  Future.fromP(date),
 ];
 
 async function run() {
-    const results = await Future.seq(seqF).await();
-    // [2022-08-12T08:09:28.319Z, true, 2022-08-12T08:09:30.324Z, true, 2022-08-12T08:09:32.326Z]
-    // With a promise factory, futures are computed sequentially as expected 
-    console.log(results);
+  const results = await Future.seq(seqF).await();
+  // [2022-08-12T08:09:28.319Z, true, 2022-08-12T08:09:30.324Z, true, 2022-08-12T08:09:32.326Z]
+  // With a promise factory, futures are computed sequentially as expected
+  console.log(results);
 }
 
-run().then()
+run().then();
 ```
 
 #### Future are cancellable
@@ -444,17 +462,20 @@ Sometimes, you need to cancel the async computation before it even happens, Futu
 
 ```ts
 const fut = new Future<number>((resolve, reject) => {
-    const t = setTimeout(() => {
-        console.log('Async computation occurred')
-        resolve(4);
-    }, 15000); // It will happen in 15 secs
-    return () => {
-        clearTimeout(t);
-        return true;
-    }; // This is our cancel function 
+  const t = setTimeout(() => {
+    console.log("Async computation occurred");
+    resolve(4);
+  }, 15000); // It will happen in 15 secs
+  return () => {
+    clearTimeout(t);
+    return true;
+  }; // This is our cancel function
 });
 
-const cancel = fut.extract(d => console.log('Number is', d), err => console.error(err));
+const cancel = fut.extract(
+  (d) => console.log("Number is", d),
+  (err) => console.error(err)
+);
 cancel(); // Here we cancel the async computation before it can happen. So, you won't see the log 'Async computation occurred'.
 ```
 
@@ -468,11 +489,11 @@ Using `flatMap` is cool, but what if we want to have a flow that is closer to im
 
 ```ts
 const finalResult = Future.run(function* () {
-   const id = yield* Future._(Future.of('abc123'));
-   const user = yield* Future._(findUserById('abc123')); // Returns a Future<User, Error> 
-   const email = yield* Future._(pickEmail(user)); // Returns a Future<stirng, Error>
-   const ok = yield* Future._(sendEmail(email, 'Hello from TMonad')); // Returns a Future<boolean, Error>
-   return ok;
+  const id = yield* Future._(Future.of("abc123"));
+  const user = yield* Future._(findUserById("abc123")); // Returns a Future<User, Error>
+  const email = yield* Future._(pickEmail(user)); // Returns a Future<stirng, Error>
+  const ok = yield* Future._(sendEmail(email, "Hello from TMonad")); // Returns a Future<boolean, Error>
+  return ok;
 });
 
 // finalResult will be a Future with either holds true or an Error
@@ -481,25 +502,25 @@ const finalResult = Future.run(function* () {
 You can also be shorter in your notation by aliasing the Future class:
 
 ```ts
-import { Future as F } from '@etermind/tmonad';
+import { Future as F } from "@etermind/tmonad";
 
 const finalResult = F.run(function* () {
-   const id = yield* F._(F.of('abc123'));
-   const user = yield* F._(findUserById('abc123')); // Returns a Future<User, Error> 
-   const email = yield* F._(pickEmail(user)); // Returns a Future<stirng, Error>
-   const ok = yield* F._(sendEmail(email, 'Hello from TMonad')); // Returns a Future<boolean, Error>
-   return ok;
-}) 
+  const id = yield* F._(F.of("abc123"));
+  const user = yield* F._(findUserById("abc123")); // Returns a Future<User, Error>
+  const email = yield* F._(pickEmail(user)); // Returns a Future<stirng, Error>
+  const ok = yield* F._(sendEmail(email, "Hello from TMonad")); // Returns a Future<boolean, Error>
+  return ok;
+});
 ```
 
 Finally, if you want to reject, you can use `yield`:
 
 ```ts
-import { Future as F } from '@etermind/tmonad';
+import { Future as F } from "@etermind/tmonad";
 
 const finalResult = F.run(function* () {
-   yield F.reject(new Error('Error...'));
-}) 
+  yield F.reject(new Error("Error..."));
+});
 ```
 
 #### Using match
@@ -512,24 +533,24 @@ To do so, we use the `match` function:
 const fut = Future.of(4);
 
 const matchObject = {
-    onSuccess: (v: number) => v * 4,
-    onFailure: (e: Error) => {}, 
+  onSuccess: (v: number) => v * 4,
+  onFailure: (e: Error) => {},
 };
 
 const returnedValue = fut.match(matchObject);
-// The returnedValue value is also a Future 
+// The returnedValue value is also a Future
 ```
 
 #### Future API
 
-- `new Future<T, E = Error>((resolve, reject) => () => boolean): Future<T, E = Error>` to create a future. You callback should return the `cancel` function (= a function that takes no parameter and returns a boolean). 
+- `new Future<T, E = Error>((resolve, reject) => () => boolean): Future<T, E = Error>` to create a future. You callback should return the `cancel` function (= a function that takes no parameter and returns a boolean).
 - `Future.of<T, never>(value: T, cancel: () => true)` to create a future that always resolves. The cancel function is optional.
 - `Future.reject<never, E = Error>(value: E, cancel: () => true)` to create a future that always rejects. The cancel function is optional.
 - `Future.fromP<T, E = Error>(value: Promise<T>| () => Promise<T>, errorMapper: (e: Error) => E)` to create a future from a promise. Be sure to have read the `Futures are lazy` section. Also, this method allows to map the Error of a rejected promise into the Error type of the future. If you are fine with the error, the errorMapper is optional.
-- `Future.seq<T, E = Error>(futures: Future<T, E>[]): Future<T[], E>`: given a list of futures, apply them sequentially and return a list of results if all futures succeed, otherwiwse reject and cancel the ones not already called. 
-- `Future.seqSafe<T, E = Error>(futures: Future<T, E>[]): Future<T|E[], never>`: given a list of futures, apply them sequentially and return a list of results if all futures succeed, if some futures reject, the errors are kept directly in the results array contrary to `seq` which rejects and cancels the left ones. 
-- `Future.all<T, E = Error>(futures: Future<T, E>[], limit = 0): Future<T[], E>`: Same as `seq` but futures are applied in parallel. You can use `limit` to apply up to n futures in paralel. `limit = 0` means no limit. 
-- `Future.allSafe<T, E = Error>(futures: Future<T, E>[], limit = 0): Future<T|E[], never>`: Same as `seqSafe` but futures are applied in paralel. You can use `limit` to apply up to n futures in paralel. `limit = 0` means no limit. 
+- `Future.seq<T, E = Error>(futures: Future<T, E>[]): Future<T[], E>`: given a list of futures, apply them sequentially and return a list of results if all futures succeed, otherwiwse reject and cancel the ones not already called.
+- `Future.seqSafe<T, E = Error>(futures: Future<T, E>[]): Future<T|E[], never>`: given a list of futures, apply them sequentially and return a list of results if all futures succeed, if some futures reject, the errors are kept directly in the results array contrary to `seq` which rejects and cancels the left ones.
+- `Future.all<T, E = Error>(futures: Future<T, E>[], limit = 0): Future<T[], E>`: Same as `seq` but futures are applied in parallel. You can use `limit` to apply up to n futures in paralel. `limit = 0` means no limit.
+- `Future.allSafe<T, E = Error>(futures: Future<T, E>[], limit = 0): Future<T|E[], never>`: Same as `seqSafe` but futures are applied in paralel. You can use `limit` to apply up to n futures in paralel. `limit = 0` means no limit.
 - `Future._<A, E = Error>(f: Future<A, E>) => A`: Lift the value of the Future. It is needed when using the generators with Future to allow Typescript to be able to infer the type of the yielded future. See related section for details.
 - `Future.run<N, R, E = Error>(() => Generator<Future<N, E>, R, N>): Future<R, E>`: Use Futures with generators to a more imperative style of programming. See related section for details.
 - `.flatMap<U>((v: T) => Future<U, E>): Future<U, E>` to apply a function and returns a new Future. This allows to chain the computation (see examples).
@@ -537,16 +558,17 @@ const returnedValue = fut.match(matchObject);
 - `.map<U>((val: T) => U): Future<U, E>` to apply a function and wrap its result into a Future. Contrary to flatMap, you cannot chain two maps, because you'll end up having `Future<Future<T, E2>, E1>` instead of just an `Future<U, E>`.
 - `.mapErr<U>((val: E) => Promise<U>): Future<T, U>` to apply a function and wrap its result into a Future. The function takes the error value.
 - `.swap(): Future<E, T>` to swap the success value with the error value.
-- `.extract(onSuccess: (v: T) => void, onFailure: (e: E) => void): () => boolean` to run the future. It takes a success callback and an error callback. The function returns the `cancel` function. 
+- `.extract(onSuccess: (v: T) => void, onFailure: (e: E) => void): () => boolean` to run the future. It takes a success callback and an error callback. The function returns the `cancel` function.
 - `.awaitOrElse<R>(defaultValue: R): Promise<T|R>` to extract the value, if the future is an error, then the default value is returned. `await` & `awaitOrElse` return a promise so that you can use the `await` keyword on it.
 - `.await(): Promise<T>` to extract the value, if you are sure the future is a success. `await` & `awaitOrElse` return a promise so that you can use the `await` keyword on it.
 - `.match<T, U, E>({ onSuccess: (o: T) => U, onFailure: (e: E) => U }): Future<U, E>` to execute the onSuccess function when Future is a success and the onFailure function when it is a failure.
 - `.matchErr<T, U, E>({ onSuccess: (o: T) => U, onFailure: (e: E) => U }): Future<T, U>` to execute the onSuccess function when Future is a success and the onFailure function when it is a failure. This returns a new future with the error type changed by the type of the return value of `onSuccess` or `onFailure`.
-- `.flatMatch<T, U, E>({ onSuccess: (o: T) => Future<U, E>, onFailure: (e: E) => Future<U, E> })): Future<U, E>` to execute the onSuccess function when Future is a success and the onFailure function when it is a failure. 
-- `.flatMatchErr<T, U, E>({ onSuccess: (o: T) => Future<T, U>, onFailure: (e: E) => Future<T, U> })): Future<T, U>` to execute the onSuccess function when Future is a success and the onFailure function when it is a failure. Returns a Future with type `U` for the error type. 
+- `.flatMatch<T, U, E>({ onSuccess: (o: T) => Future<U, E>, onFailure: (e: E) => Future<U, E> })): Future<U, E>` to execute the onSuccess function when Future is a success and the onFailure function when it is a failure.
+- `.flatMatchErr<T, U, E>({ onSuccess: (o: T) => Future<T, U>, onFailure: (e: E) => Future<T, U> })): Future<T, U>` to execute the onSuccess function when Future is a success and the onFailure function when it is a failure. Returns a Future with type `U` for the error type.
 - `.toResult(): Promise<Result<T, E>>` transform the future to a Result.
 - `.toOption(): Promise<Option<T>>` transform the future to an Option.
-
+- `.tap((d: T) => void): Future<T, E>` taps into the Future data (interesting if you want to log something).
+- `.tapErr((d: E) => void): Future<T, E>` taps into the Future error (interesting if you want to log something).
 
 ## NPM custom commands
 
